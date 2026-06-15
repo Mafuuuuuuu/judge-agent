@@ -1,0 +1,23 @@
+# Chiavi e variabili d'ambiente (CRITICO)
+.env
+.env.local
+.env.*
+
+# Ambienti virtuali di Python
+.venv/
+venv/
+env/
+ENV/
+
+# Cache di Python e Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Database locali (escludiamo quelli di test o temporanei se necessario)
+# Nota: se vuoi salvare lo 'schema' ma non i dati reali, di solito si escludono i .db
+data/platformhero_mirror.db
+
+# Database locali e dataset pesanti
+data/
+*.sqbpro
