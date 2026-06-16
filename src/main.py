@@ -2,7 +2,7 @@ import os
 import json
 import sqlite3
 import requests
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException,Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any,Dict, List, Optional
@@ -289,43 +289,6 @@ async def list_chat_logs(db: sqlite3.Connection = Depends(get_db)):
     
 
 # --- Endpoint per recuperare lo storico delle VALUTAZIONI ---
-@app.get("/api/v1/audit/evaluations")
-async def get_all_evaluations(db: sqlite3.Connection = Depends(get_db)):
-    """
-    Recupera l'elenco completo di tutte le valutazioni strutturate calcolate dall'AI Judge.
-    """
-    cursor = db.cursor()
-    try:
-        cursor.execute("""
-            SELECT 
-                id,
-                chat_id,
-                log_id,
-                technical_score,
-                completeness_score,
-                business_score,
-                consistency_score,
-                prompt_compliance_score,
-                helpfulness_score,
-                tone_score,
-                hallucination_score,
-                efficiency_score,
-                source_reliability_score,
-                overall_score,
-                feedback,
-                issues,
-                created_at
-            FROM chat_evaluations
-            ORDER BY created_at DESC
-        """)
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
-
-    except sqlite3.OperationalError as e:
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Errore tabella chat_evaluations. Dettaglio: {str(e)}"
-        )
     
 
 # --- PEZZO 4: Endpoint per eliminare una riga da evaluations ---
@@ -524,3 +487,256 @@ async def evaluate_user_chat(chat_id: str, db: sqlite3.Connection = Depends(get_
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore nel salvataggio della valutazione: {str(e)}")
+    
+
+## API di agregazione user-chats
+    
+# GET /kpi/user-chats/totale
+# Totale conversazioni (opzionale: filtro date)
+@app.get("/kpi/user-chats/totale")
+def totale_conversazioni(
+    from_date: Optional[str] = Query(None, description="ISO date, es. 2024-01-01"),
+    to_date: Optional[str] = Query(None, description="ISO date, es. 2024-12-31"),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    query = "SELECT COUNT(*) as totale FROM user_chats WHERE 1=1"
+    params = []
+ 
+    if from_date:
+        query += " AND created_at >= ?"
+        params.append(from_date)
+    if to_date:
+        query += " AND created_at <= ?"
+        params.append(to_date)
+ 
+    row = db.execute(query, params).fetchone()
+    return {"totale_conversazioni": row["totale"]}
+
+
+# media messaggi per chat, minimo, massimo e totale messaggi
+@app.get("/kpi/user-chats/media-messaggi")
+def media_messaggi(db: sqlite3.Connection = Depends(get_db)):
+    query = """
+        SELECT
+            ROUND(AVG(message_count), 2) AS media,
+            MIN(message_count)           AS minimo,
+            MAX(message_count)           AS massimo,
+            SUM(message_count)           AS totale_messaggi
+        FROM user_chats
+    """
+    row = db.execute(query).fetchone()
+    return {
+        "media_messaggi_per_chat": row["media"],
+        "minimo": row["minimo"],
+        "massimo": row["massimo"],
+        "totale_messaggi": row["totale_messaggi"],
+    }
+
+
+# distribuzione delle chat per system prompt (quante chat hanno quale prompt, media messaggi per ogni prompt, totale messaggi per ogni prompt)
+
+@app.get("/kpi/user-chats/distribuzione-system-prompt")
+def distribuzione_system_prompt(db: sqlite3.Connection = Depends(get_db)):
+    query = """
+        SELECT
+            COALESCE(system_prompt, '__nessuno__') AS system_prompt,
+            COUNT(*)                               AS totale,
+            ROUND(AVG(message_count), 2)           AS media_messaggi
+        FROM user_chats
+        GROUP BY system_prompt
+        ORDER BY totale DESC
+    """
+    rows = db.execute(query).fetchall()
+    return {
+        "distribuzione": [dict(r) for r in rows],
+        "totale_prompt_distinti": len(rows),
+    }
+
+#trend delle conversazioni nel tempo, raggruppate per giorno, settimana o mese, con media messaggi per periodo
+# GET /kpi/user-chats/trend?granularity=day|week|month
+@app.get("/kpi/user-chats/trend")
+def trend_conversazioni(
+    granularity: str = Query("day", enum=["day", "week", "month"]),
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    format_map = {
+        "day":   "%Y-%m-%d",
+        "week":  "%Y-W%W",
+        "month": "%Y-%m",
+    }
+    fmt = format_map[granularity]
+ 
+    query = f"""
+        SELECT
+            strftime('{fmt}', created_at) AS periodo,
+            COUNT(*)                       AS totale_chat,
+            ROUND(AVG(message_count), 2)   AS media_messaggi
+        FROM user_chats
+        WHERE 1=1
+    """
+    params = []
+ 
+    if from_date:
+        query += " AND created_at >= ?"
+        params.append(from_date)
+    if to_date:
+        query += " AND created_at <= ?"
+        params.append(to_date)
+ 
+    query += " GROUP BY periodo ORDER BY periodo ASC"
+    rows = db.execute(query, params).fetchall()
+    return {
+        "granularity": granularity,
+        "trend": [dict(r) for r in rows],
+    }
+
+
+# top N chat con più messaggi, con possibilità di limitare il numero di risultati
+# GET /kpi/user-chats/top-chat?limit=10
+@app.get("/kpi/user-chats/top-chat")
+def top_chat(
+    limit: int = Query(10, ge=1, le=100),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    query = """
+        SELECT id, system_prompt, message_count, created_at
+        FROM user_chats
+        ORDER BY message_count DESC
+        LIMIT ?
+    """
+    rows = db.execute(query, [limit]).fetchall()
+    return {
+        "top_n": limit,
+        "risultati": [dict(r) for r in rows],
+    }
+
+## API di aggregazione chat_logs
+
+# contatore totale dei log delle chat, con possibilità di filtrare per intervallo di date
+# GET /kpi/chat-logs/totale
+@app.get("/kpi/chat-logs/totale")
+def totale_chat_logs(
+    from_date: Optional[str] = Query(None, description="ISO date, es. 2024-01-01"),
+    to_date: Optional[str] = Query(None, description="ISO date, es. 2024-12-31"),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    query = "SELECT COUNT(*) as totale FROM chat_logs WHERE 1=1"
+    params = []
+
+    if from_date:
+        query += " AND created_at >= ?"
+        params.append(from_date)
+    if to_date:
+        query += " AND created_at <= ?"
+        params.append(to_date)
+
+    row = db.execute(query, params).fetchone()
+    return {"totale_chat_logs": row["totale"]}
+
+
+# media messaggi per chat, minimo, massimo e totale messaggi
+# GET /kpi/chat-logs/media-messaggi
+@app.get("/kpi/chat-logs/media-messaggi")
+def media_messaggi_chat_logs(db: sqlite3.Connection = Depends(get_db)):
+    query = """
+        SELECT
+            ROUND(AVG(message_count), 2) AS media,
+            MIN(message_count)           AS minimo,
+            MAX(message_count)           AS massimo,
+            SUM(message_count)           AS totale_messaggi
+        FROM chat_logs
+    """
+    row = db.execute(query).fetchone()
+    return {
+        "media_messaggi_per_chat": row["media"],
+        "minimo": row["minimo"],
+        "massimo": row["massimo"],
+        "totale_messaggi": row["totale_messaggi"],
+    }
+
+# distribuzione delle chat per assistant_id (quante chat hanno quale assistant_id, media messaggi per ogni assistant_id, totale messaggi per ogni assistant_id)
+# GET /kpi/chat-logs/distribuzione-assistant
+@app.get("/kpi/chat-logs/distribuzione-assistant")
+def distribuzione_assistant(db: sqlite3.Connection = Depends(get_db)):
+    query = """
+        SELECT
+            COALESCE(assistant_id, '__nessuno__') AS assistant_id,
+            COUNT(*)                              AS totale_chat,
+            ROUND(AVG(message_count), 2)          AS media_messaggi,
+            SUM(message_count)                    AS totale_messaggi
+        FROM chat_logs
+        GROUP BY assistant_id
+        ORDER BY totale_chat DESC
+    """
+    rows = db.execute(query).fetchall()
+    return {
+        "distribuzione": [dict(r) for r in rows],
+        "totale_assistant_distinti": len(rows),
+    }
+
+# trend delle conversazioni nel tempo, raggruppate per giorno, settimana o mese, con media messaggi per periodo
+# GET /kpi/chat-logs/trend?granularity=day|week|month
+@app.get("/kpi/chat-logs/trend")
+def trend_chat_logs(
+    granularity: str = Query("day", enum=["day", "week", "month"]),
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    format_map = {
+        "day":   "%Y-%m-%d",
+        "week":  "%Y-W%W",
+        "month": "%Y-%m",
+    }
+    fmt = format_map[granularity]
+
+    query = f"""
+        SELECT
+            strftime('{fmt}', created_at) AS periodo,
+            COUNT(*)                       AS totale_chat,
+            ROUND(AVG(message_count), 2)   AS media_messaggi
+        FROM chat_logs
+        WHERE 1=1
+    """
+    params = []
+
+    if from_date:
+        query += " AND created_at >= ?"
+        params.append(from_date)
+    if to_date:
+        query += " AND created_at <= ?"
+        params.append(to_date)
+
+    query += " GROUP BY periodo ORDER BY periodo ASC"
+    rows = db.execute(query, params).fetchall()
+    return {
+        "granularity": granularity,
+        "trend": [dict(r) for r in rows],
+    }
+
+
+# chat con più messaggi
+# GET /kpi/chat-logs/top-chat?limit=10
+@app.get("/kpi/chat-logs/top-chat")
+def top_chat_logs(
+    limit: int = Query(10, ge=1, le=100),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    query = """
+        SELECT
+            id,
+            assistant_id,
+            chat_id,
+            message_count,
+            created_at
+        FROM chat_logs
+        ORDER BY message_count DESC
+        LIMIT ?
+    """
+    rows = db.execute(query, [limit]).fetchall()
+    return {
+        "top_n": limit,
+        "risultati": [dict(r) for r in rows],
+    }
