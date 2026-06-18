@@ -1,19 +1,20 @@
 import os
 import json
 import sqlite3
-import requests
+import unicodedata
 from fastapi import FastAPI, HTTPException,Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Any,Dict, List, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 import uuid
 from datetime import datetime, timezone
 
-# Importiamo le funzioni stabili e corrette dal tuo file core
-from src.auditor_core import salva_chat_su_db, valuta_chat_con_LLM, salva_valutazione_db
 
+# Importiamo le funzioni stabili e corrette dal tuo file core
+from app.auditor_core import valuta_chat_con_LLM, salva_valutazione_db, salva_chat_su_db
+from app.chat_sync_core import fetch_chat_messages
 load_dotenv()
 
 app = FastAPI(
@@ -59,9 +60,60 @@ class SyncRequest(BaseModel):
     assistant_id: str
     chat_id: str
 
+class SanitizeBodyMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            content_type = ""
+            for name, value in scope.get("headers", []):
+                if name == b"content-type":
+                    content_type = value.decode("utf-8")
+                    break
+
+            if content_type.startswith("application/json"):
+                # Leggiamo il body grezzo completo
+                body = b""
+                more_body = True
+                while more_body:
+                    message = await receive()
+                    body += message.get("body", b"")
+                    more_body = message.get("more_body", False)
+
+                # Puliamo con strict=False e riserializziamo
+                try:
+                    body_str = body.decode("utf-8")
+                    parsed = json.loads(body_str, strict=False)
+                    clean_body = json.dumps(parsed, ensure_ascii=False).encode("utf-8")
+                except Exception:
+                    clean_body = body
+
+                # Nuovo receive che restituisce il body pulito
+                async def clean_receive():
+                    return {
+                        "type": "http.request",
+                        "body": clean_body,
+                        "more_body": False
+                    }
+
+                await self.app(scope, clean_receive, send)
+                return
+
+        await self.app(scope, receive, send)
+
 class AuditRequest(BaseModel):
     chat_id: str
-    system_prompt_agente: Optional[str] = ""  # Opzionale: se vuoto, esclude la prompt compliance dal calcolo
+    system_prompt_agente: Optional[str] = "" 
+    @field_validator("system_prompt_agente", mode="before")
+    @classmethod
+    def sanitize_prompt(cls, v):
+        if not v:
+            return ""
+        return "".join(
+            c for c in str(v)
+            if not unicodedata.category(c).startswith("C") or c in ("\n", "\t")
+        ).strip() # Opzionale: se vuoto, esclude la prompt compliance dal calcolo
 
 
 # Schema per l'inserimento della chat personalizzata
@@ -82,17 +134,16 @@ async def sync_chat(payload: SyncRequest, db: sqlite3.Connection = Depends(get_d
         raise HTTPException(status_code=500, detail="Token di PlatformHero non configurato nel file .env.")
 
     # URL CORRETTO (Prende sia l'assistant_id che il chat_id dal payload)
-    url_platform_hero = f"https://api.platformhero.ai/v1/assistants/{payload.assistant_id}/chats/{payload.chat_id}/messages"
-
-    headers = {"Authorization": f"Bearer {API_KEY_REMOTA}", "Content-Type": "application/json"}
-
     try:
-        response = requests.get(url_platform_hero, headers=headers)
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail=f"Errore PlatformHero: {response.text}")
-        payload_api = response.json()
-    except requests.RequestException as e:
-        raise HTTPException(status_code=502, detail=f"Errore di rete con PlatformHero: {e}")
+        payload_api = fetch_chat_messages(
+            assistant_id=payload.assistant_id,
+            chat_id=payload.chat_id,
+            api_key=API_KEY_REMOTA
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
     log_id_interno, è_aggiornato = salva_chat_su_db(db, payload.assistant_id, payload.chat_id, payload_api)
 
@@ -102,7 +153,6 @@ async def sync_chat(payload: SyncRequest, db: sqlite3.Connection = Depends(get_d
         "is_updated": è_aggiornato,
         "message": "Sincronizzazione completata." if è_aggiornato else "Nessun nuovo messaggio rilevato."
     }
-
 
 # --- PEZZO 2: Endpoint di Valutazione Conversazione (AI Judge) ---
 @app.post("/api/v1/audit/evaluate")
@@ -151,10 +201,16 @@ async def evaluate_chat(payload: AuditRequest, db: sqlite3.Connection = Depends(
 
     # 3. Chiamata alla funzione core dell'AI Judge Remoto
     try:
-        prompt_operativo = payload.system_prompt_agente or ""
+        # FIX 1: Sanitizzazione caratteri di controllo nel system prompt
+        import unicodedata
+        prompt_operativo = "".join(
+            c for c in (payload.system_prompt_agente or "")
+            if not unicodedata.category(c).startswith("C") or c in ("\n", "\t")
+        ).strip()
+
         risposta_ai = valuta_chat_con_LLM(client_openai, MODEL_NAME, testo_ticket_markdown, prompt_operativo)
         
-        # Isolamento standard del blocco JSON puro
+        # FIX 2: Isolamento standard del blocco JSON puro
         risposta_pulita = risposta_ai.strip()
         if "{" in risposta_pulita and "}" in risposta_pulita:
             risposta_pulita = risposta_pulita[risposta_pulita.find("{"):risposta_pulita.rfind("}") + 1]
@@ -197,7 +253,6 @@ async def evaluate_chat(payload: AuditRequest, db: sqlite3.Connection = Depends(
     if not eval_id_interno:
         raise HTTPException(status_code=500, detail="Errore durante la registrazione della valutazione a DB.")
 
-    # Ritorniamo i dati strutturati pronti per essere letti da Angular
     return {
         "status": "success",
         "evaluation_id": eval_id_interno,
@@ -834,3 +889,4 @@ def get_all_user_chats(
         "risultati": [dict(r) for r in rows],
     }
  
+app = SanitizeBodyMiddleware(app)
