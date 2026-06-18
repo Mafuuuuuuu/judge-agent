@@ -503,10 +503,10 @@ def totale_conversazioni(
     params = []
  
     if from_date:
-        query += " AND created_at >= ?"
+        query += " AND date(created_at) >= date(?)"
         params.append(from_date)
     if to_date:
-        query += " AND created_at <= ?"
+        query += " AND date(created_at) <= date(?)"
         params.append(to_date)
  
     row = db.execute(query, params).fetchone()
@@ -626,10 +626,10 @@ def totale_chat_logs(
     params = []
 
     if from_date:
-        query += " AND created_at >= ?"
+        query += " AND date(created_at) >= date(?)"
         params.append(from_date)
     if to_date:
-        query += " AND created_at <= ?"
+        query += " AND date(created_at) <= date(?)"
         params.append(to_date)
 
     row = db.execute(query, params).fetchone()
@@ -703,10 +703,10 @@ def trend_chat_logs(
     params = []
 
     if from_date:
-        query += " AND created_at >= ?"
+        query += " AND date(created_at) >= date(?)"
         params.append(from_date)
     if to_date:
-        query += " AND created_at <= ?"
+        query += " AND date(created_at) <= date(?)"
         params.append(to_date)
 
     query += " GROUP BY periodo ORDER BY periodo ASC"
@@ -770,10 +770,10 @@ def media_score_evaluations(
     params = []
  
     if from_date:
-        query += " AND created_at >= ?"
+        query += " AND date(created_at) >= date(?)"
         params.append(from_date)
     if to_date:
-        query += " AND created_at <= ?"
+        query += " AND date(created_at) <= date(?)"
         params.append(to_date)
  
     row = db.execute(query, params).fetchone()
