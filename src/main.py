@@ -740,3 +740,97 @@ def top_chat_logs(
         "top_n": limit,
         "risultati": [dict(r) for r in rows],
     }
+
+#media score delle valutazioni, con possibilità di filtrare per intervallo di date
+@app.get("/kpi/evaluations/media-score")
+def media_score_evaluations(
+    from_date: Optional[str] = Query(None, description="ISO date, es. 2024-01-01"),
+    to_date: Optional[str] = Query(None, description="ISO date, es. 2024-12-31"),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    query = """
+        SELECT
+            COUNT(*)                              AS totale_valutazioni,
+            ROUND(AVG(overall_score), 2)          AS media_overall,
+            ROUND(AVG(technical_score), 2)        AS media_technical,
+            ROUND(AVG(completeness_score), 2)     AS media_completeness,
+            ROUND(AVG(business_score), 2)         AS media_business,
+            ROUND(AVG(consistency_score), 2)      AS media_consistency,
+            ROUND(AVG(prompt_compliance_score), 2) AS media_prompt_compliance,
+            ROUND(AVG(helpfulness_score), 2)       AS media_helpfulness,
+            ROUND(AVG(tone_score), 2)              AS media_tone,
+            ROUND(AVG(hallucination_score), 2)     AS media_hallucination,
+            ROUND(AVG(efficiency_score), 2)        AS media_efficiency,
+            ROUND(AVG(source_reliability_score), 2) AS media_source_reliability,
+            ROUND(MIN(overall_score), 2)          AS min_overall,
+            ROUND(MAX(overall_score), 2)          AS max_overall
+        FROM evaluations
+        WHERE 1=1
+    """
+    params = []
+ 
+    if from_date:
+        query += " AND created_at >= ?"
+        params.append(from_date)
+    if to_date:
+        query += " AND created_at <= ?"
+        params.append(to_date)
+ 
+    row = db.execute(query, params).fetchone()
+    return {
+        "totale_valutazioni": row["totale_valutazioni"],
+        "score_medi": {
+            "overall":      row["media_overall"],
+            "technical":    row["media_technical"],
+            "completeness": row["media_completeness"],
+            "business":     row["media_business"],
+            "consistency":  row["media_consistency"],
+            "prompt_compliance": row["media_prompt_compliance"],
+            "helpfulness": row["media_helpfulness"],
+            "tone": row["media_tone"],
+            "hallucination": row["media_hallucination"],
+            "efficiency": row["media_efficiency"],
+            "source_reliability": row["media_source_reliability"],
+        },
+        "overall_range": {
+            "min": row["min_overall"],
+            "max": row["max_overall"],
+        },
+    }
+
+
+#eliminazione di una chat utente personalizzata tramite il suo ID, con controllo di esistenza e gestione degli errori
+@app.delete("/api/v1/user-chats/{chat_id}")
+def delete_user_chat(
+    chat_id: str,
+    db: sqlite3.Connection = Depends(get_db),
+):
+    row = db.execute("SELECT id FROM user_chats WHERE id = ?", [chat_id]).fetchone()
+ 
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Chat '{chat_id}' non trovata")
+ 
+    db.execute("DELETE FROM user_chats WHERE id = ?", [chat_id])
+    db.commit()
+ 
+    return {"status": "deleted", "chat_id": chat_id}
+
+
+# visualizzazione di tutte le chat utente personalizzate, con possibilità di paginazione tramite limit e offset
+# GET /api/v1/user-chats
+@app.get("/api/v1/user-chats/list")
+def get_all_user_chats(
+    limit: int = Query(100, ge=1, le=1000, description="Numero massimo di righe (default 100)"),
+    offset: int = Query(0, ge=0, description="Offset per paginazione"),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    total = db.execute("SELECT COUNT(*) as totale FROM user_chats").fetchone()["totale"]
+ 
+    rows = db.execute("SELECT id, system_prompt, messages_json, message_count, created_at FROM user_chats ORDER BY created_at DESC LIMIT ? OFFSET ?", [limit, offset]).fetchall()
+    return {
+        "totale": total,
+        "limit": limit,
+        "offset": offset,
+        "risultati": [dict(r) for r in rows],
+    }
+ 
