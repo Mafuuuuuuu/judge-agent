@@ -76,6 +76,8 @@ app.include_router(eval_chatlogs.router, prefix="/evaluate")
 app.include_router(analytics_uc.router, prefix="/analytics")
 app.include_router(analytics_cl.router, prefix="/analytics")
 app.include_router(analytics_ev.router, prefix="/analytics")
+app.include_router(analytics_uc.router, prefix="/analytics")
+app.include_router(analytics_cl.router, prefix="/analytics")
 #delete
 app.include_router(delete_userchat.router, prefix="/delete")
 app.include_router(delete_chatlogs.router, prefix="/delete")
