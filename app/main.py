@@ -1,13 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import json
-from app.core.auditor_core import valuta_chat_con_LLM, salva_valutazione_db, salva_chat_su_db
-from app.core.chat_sync_core import fetch_chat_messages
 from app.routes.insert import chatlogs as insert_chatlogs
 from app.routes.insert import userchat as insert_userchat
 from app.routes.insert import logs as insert_logs
 from app.routes.evaluate import userchat as eval_userchat
 from app.routes.evaluate import chatlogs as eval_chatlogs
+from app.routes.analytics import userchat as analytics_uc
+from app.routes.analytics import chatlogs as analytics_cl
+from app.routes.analytics import evaluations as analytics_ev
+from app.routes.delete import userchat as delete_userchat
+from app.routes.delete import chatlogs as delete_chatlogs
+from app.routes.delete import evaluations as delete_evaluations
 
 from app.config.settings import (
     API_TITLE, API_VERSION, API_DESCRIPTION, CORS_ORIGINS
@@ -60,12 +64,22 @@ app.add_middleware(
 # Registriamo il middleware ASGI nativo per la pulizia dei body
 app.add_middleware(SanitizeBodyMiddleware)
 
+
+#insert
 app.include_router(insert_chatlogs.router, prefix="/insert")
 app.include_router(insert_userchat.router, prefix="/insert")
 app.include_router(insert_logs.router, prefix="/insert")
+#evaluate
 app.include_router(eval_userchat.router, prefix="/evaluate")
 app.include_router(eval_chatlogs.router, prefix="/evaluate")
-
+#analytics
+app.include_router(analytics_uc.router, prefix="/analytics")
+app.include_router(analytics_cl.router, prefix="/analytics")
+app.include_router(analytics_ev.router, prefix="/analytics")
+#delete
+app.include_router(delete_userchat.router, prefix="/delete")
+app.include_router(delete_chatlogs.router, prefix="/delete")
+app.include_router(delete_evaluations.router, prefix="/delete")
 
 
 @app.get("/health")
