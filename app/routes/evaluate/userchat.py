@@ -1,7 +1,6 @@
 # app/routes/evaluate/userchat.py
 import json
 import sqlite3
-import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from app.database.connection import get_db
 from app.core.auditor_core import valuta_chat_con_LLM, salva_valutazione_db

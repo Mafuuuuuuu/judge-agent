@@ -1,0 +1,6 @@
+TOKEN=il_tuo_token_segreto
+PLATFORMHERO_URL=url_api_platformhero
+MODEL_NAME=id_del_modello
+DB_PATH=percorso_file_database
+CORS_ORIGINS=url_del_frontend
+PORT=porta_dove_collegarsi_con_fastapiper

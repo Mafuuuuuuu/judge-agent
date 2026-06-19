@@ -13,8 +13,8 @@ from datetime import datetime, timezone
 
 
 # Importiamo le funzioni stabili e corrette dal tuo file core
-from app.auditor_core import valuta_chat_con_LLM, salva_valutazione_db, salva_chat_su_db
-from app.chat_sync_core import fetch_chat_messages
+from app.core.auditor_core import valuta_chat_con_LLM, salva_valutazione_db, salva_chat_su_db
+from app.core.chat_sync_core import fetch_chat_messages
 load_dotenv()
 
 app = FastAPI(
