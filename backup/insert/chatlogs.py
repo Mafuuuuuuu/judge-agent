@@ -32,3 +32,4 @@ async def sync_chat(payload: SyncRequest, db: sqlite3.Connection = Depends(get_d
         "is_updated": e_aggiornato,
         "message": "Sincronizzazione completata." if e_aggiornato else "Nessun nuovo messaggio rilevato."
     }
+

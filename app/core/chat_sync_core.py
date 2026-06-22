@@ -36,7 +36,7 @@ def salva_chat_su_db(conn, assistant_id: str, chat_id: str, payload: dict) -> tu
     
     cursor = conn.cursor()
     
-    # 1. Recupero dell'ultimo stato salvato
+    # Recupero dell'ultimo stato salvato
     cursor.execute("""
         SELECT id, message_count FROM chat_logs 
         WHERE chat_id = ? 
@@ -44,7 +44,7 @@ def salva_chat_su_db(conn, assistant_id: str, chat_id: str, payload: dict) -> tu
     """, (chat_id,))
     ultimo_record = cursor.fetchone()
     
-    # 2. Controllo duplicati: se uguale, ritorna False
+    # Controllo duplicati: se uguale, ritorna False
     if ultimo_record:
         ultimo_id, ultimo_count = ultimo_record
         if message_count == ultimo_count:
@@ -53,7 +53,7 @@ def salva_chat_su_db(conn, assistant_id: str, chat_id: str, payload: dict) -> tu
             
         print(f"-> Rilevato aggiornamento per la chat {chat_id}: da {ultimo_count} a {message_count} messaggi.")
             
-    # 3. Inserimento nuovo record o aggiornato
+    # Inserimento nuovo record o aggiornato
     messages_json = json.dumps(messages_list, ensure_ascii=False)
     internal_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc).isoformat()

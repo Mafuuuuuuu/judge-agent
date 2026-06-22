@@ -1,0 +1,9 @@
+# app/routes/userchat/__init__.py
+from fastapi import APIRouter
+from app.routes.userchat import insert, evaluate, analytics, delete
+
+router = APIRouter(prefix="/userchat")
+router.include_router(insert.router)
+router.include_router(evaluate.router)
+router.include_router(analytics.router)
+router.include_router(delete.router)

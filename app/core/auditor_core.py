@@ -3,7 +3,7 @@ import uuid
 import requests
 from datetime import datetime, timezone
 
-# --- 1. FUNZIONE FETCH: Scaricamento dati da PlatformHero ---
+# FUNZIONE FETCH: Scaricamento dati da PlatformHero
 def scarica_ultimo_log(api_key: str, url: str, limit: int = 10):
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -32,7 +32,7 @@ def scarica_ultimo_log(api_key: str, url: str, limit: int = 10):
     return elenco_log[0]
 
 
-# --- 2. FUNZIONE AUDIT: Interrogazione dinamica del modello ---
+# FUNZIONE AUDIT: Interrogazione dinamica del modello
 def valuta_chat_con_LLM(client_ai, model_name: str, chat_content: str, system_prompt_agente: str = "") -> str:
     """
     Invia la chat all'LLM. Se system_prompt_agente è presente, attiva la valutazione di aderenza.
@@ -196,7 +196,7 @@ Output atteso:
     return response.choices[0].message.content
 
 
-# --- 3. FUNZIONE SAVE LOGS: Scrittura fisica delle chat su DB ---
+#  FUNZIONE SAVE LOGS: Scrittura fisica delle chat su DB 
 def salva_chat_su_db(conn, assistant_id: str, chat_id: str, payload: dict) -> tuple:
     """
     Estrae l'elenco dei messaggi dal payload API, controlla se ci sono aggiornamenti
@@ -247,7 +247,7 @@ def salva_chat_su_db(conn, assistant_id: str, chat_id: str, payload: dict) -> tu
     return internal_id, True
 
 
-# --- 4. FUNZIONE SAVE EVALUATIONS: Registrazione dei 10 KPI nel DB ---
+# FUNZIONE SAVE EVALUATIONS: Registrazione dei 10 KPI nel DB
 def salva_valutazione_db(conn, log_id: str, risposta_json_str: str) -> str:
     """
     Prende il JSON generato dall'AI Judge normalizzato, estrae i 10 KPI granulari,
