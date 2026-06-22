@@ -242,6 +242,4 @@ La connessione SQLite attiva `PRAGMA foreign_keys = ON` ad ogni apertura, perch√
 - La configurazione √® centralizzata in `app/config/settings.py` e non hardcoded negli endpoint.
 - Il progetto include un middleware di sanitizzazione del body.
 
-## Licenza
 
-Inserisci qui la licenza del progetto se vuoi distribuirlo pubblicamente.
