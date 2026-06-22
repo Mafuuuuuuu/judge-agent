@@ -1,152 +1,127 @@
 # PlatformHero AI Quality Intelligence Layer
 
-**Versione:** 1.2
-**Stack:** Python 3.14 · FastAPI · SQLite · Jupyter
+**Versione:** 1.2.0  
+**Stack:** Python 3.14, FastAPI, SQLite, Jupyter
 
-Sistema di **AI Quality & Observability** che si integra sopra PlatformHero senza sostituirlo. Recupera i log delle conversazioni del Customer Agent, le valuta tramite un LLM-as-Judge multi-dimensionale, e fornisce analytics aggregate per il monitoraggio della qualità operativa.
+PlatformHero AI Quality Intelligence Layer è un sistema di **AI Quality & Observability** che si innesta sopra PlatformHero senza sostituirlo. Recupera i log delle conversazioni del Customer Agent, li valuta tramite un approccio **LLM-as-Judge** multi-dimensionale e restituisce analytics aggregate per monitorare la qualità operativa.
 
-> Questo sistema **non** è un Customer Agent né un generatore di risposte. È un layer di controllo qualità e intelligence operativa che osserva, valuta e misura.
-
----
+> Questo progetto **non** è un Customer Agent e **non** genera risposte per gli utenti finali. È un layer di controllo qualità e intelligence operativa che osserva, valuta e misura.
 
 ## Indice
 
 - [Architettura](#architettura)
+- [Funzionalità](#funzionalità)
+- [Requisiti](#requisiti)
 - [Setup](#setup)
 - [Configurazione](#configurazione)
 - [Avvio](#avvio)
-- [Struttura del progetto](#struttura-del-progetto)
 - [API Reference](#api-reference)
+- [Struttura del progetto](#struttura-del-progetto)
 - [Database](#database)
 - [Note di sviluppo](#note-di-sviluppo)
 
----
-
 ## Architettura
 
-```
+```text
 Customer Agent (esistente)
         │
         ▼
 PlatformHero API (log esterni)
         │
         ▼
-   Sync / Insert Layer  ──────►  SQLite Mirror DB
-        │                              │
-        ▼                              │
-  Judge Agent (LLM Eval)  ◄────────────┘
+Sync / Insert Layer  ─────►  SQLite Mirror DB
+        │                        │
+        ▼                        │
+Judge Agent (LLM Eval) ◄─────────┘
         │
         ▼
-   Evaluations DB
+Evaluations DB
         │
         ▼
-  Analytics Layer  ──────►  (Futuro: Dashboard Angular)
+Analytics Layer  ─────►  (futuro: dashboard Angular)
 ```
 
-Tre responsabilità principali:
+Il sistema si articola in tre responsabilità principali:
 
-1. **Insert** — recupero e inserimento dei log da PlatformHero
-2. **Evaluate** — valutazione automatica della qualità tramite LLM Judge (10 dimensioni di scoring)
-3. **Analytics** — aggregazioni, KPI, trend per l'osservabilità
+1. **Insert**: recupero e inserimento dei log da PlatformHero.
+2. **Evaluate**: valutazione automatica della qualità tramite LLM Judge su 10 dimensioni di scoring.
+3. **Analytics**: aggregazioni, KPI e trend per l’osservabilità.
 
----
+## Funzionalità
+
+- Sincronizzazione dei log conversazionali da PlatformHero.
+- Inserimento manuale o via API di `userchat`, `logs` e `chatlogs`.
+- Valutazione automatica delle chat con punteggi multidimensionali.
+- Calcolo di `overall_score` lato Python per evitare distorsioni del modello.
+- Endpoint di analytics per overview, trend e confronti.
+- Cancellazione con gestione della cascata tra tabelle correlate.
+- Supporto CORS per frontend Angular.
+
+## Requisiti
+
+- Python 3.13 o superiore
+- `pip`
+- Accesso a un endpoint OpenAI-compatible per il Judge
 
 ## Setup
 
-### Requisiti
-
-- Python 3.13+
-- pip
-
-### Installazione
+### 1. Clona il repository
 
 ```powershell
 git clone <repo-url>
 cd "Judge agent"
+```
 
+### 2. Crea e attiva l'ambiente virtuale
+
+```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
+```
 
+### 3. Installa le dipendenze
+
+```powershell
 pip install -r requirements.txt
 ```
 
----
-
 ## Configurazione
 
-Copia il file di esempio e popola i valori reali:
+Copia il file di esempio e compila le variabili reali:
 
 ```powershell
-cp .env.example .env
+Copy-Item -LiteralPath '.env .example' -Destination '.env'
 ```
 
-Variabili richieste:
+Variabili principali:
 
 | Variabile | Descrizione | Esempio |
 |---|---|---|
-| `TOKEN` | API Key PlatformHero (Judge LLM) | `tk...` |
-| `BASE_URL` | Endpoint OpenAI-compatible per il Judge | `https://api.platformhero.ai/v1` |
+| `TOKEN` | API key PlatformHero usata dal Judge | `tk...` |
+| `PLATFORMHERO_URL` | Endpoint OpenAI-compatible | `https://api.platformhero.ai/v1` |
 | `MODEL_NAME` | Modello usato per la valutazione | `TpwgLXbi` |
-| `DB_PATH` | Percorso del DB SQLite mirror | `data/platformhero_mirror.db` |
-| `CORS_ORIGINS` | Origine consentita (frontend Angular) | `http://localhost:4200` |
+| `DB_PATH` | Percorso del database SQLite mirror | `data/platformhero_mirror.db` |
+| `CORS_ORIGINS` | Origine consentita per il frontend | `http://localhost:4200` |
 | `PORT` | Porta del server FastAPI | `8000` |
 
-⚠️ Il `.env` non va mai committato — è già escluso in `.gitignore`.
-
----
+Nota: il file `.env` non va committato ed è già escluso tramite `.gitignore`.
 
 ## Avvio
+
+Avvia il server FastAPI con:
 
 ```powershell
 python -m uvicorn app.main:app --reload
 ```
 
-Swagger UI disponibile su:
+Interfacce e endpoint utili:
 
-```
-http://127.0.0.1:8000/docs
-```
-
----
-
-## Struttura del progetto
-
-```
-app/
-├── main.py                  # App factory, CORS, registrazione router
-│
-├── config/
-│   └── settings.py          # Tutte le configurazioni da .env
-│
-├── database/
-│   ├── connection.py        # get_db() — dependency injection, PRAGMA foreign_keys=ON
-│   └── schemas.py           # Modelli Pydantic per validazione request
-│
-├── core/
-│   ├── auditor_core.py      # Logica del Judge LLM (prompt, scoring, salvataggio)
-│   └── chat_sync_core.py    # Fetch dei log da PlatformHero
-│
-├── routes/
-│   ├── insert/               # POST — inserimento dati (userchat, logs, chatlogs)
-│   ├── evaluate/              # POST — valutazione AI Judge (userchat, chatlogs)
-│   ├── analytics/             # GET — aggregazioni e KPI (userchat, chatlogs, evaluations)
-│   └── delete/                 # DELETE — eliminazione con cascade
-│
-└── utils/                    # Funzioni di supporto condivise
-
-notebooks/
-├── log_normalization.ipynb   # Parsing markdown, batch writes
-└── judge_agent.ipynb         # Sperimentazione Judge (Ollama locale)
-
-data/
-└── platformhero_mirror.db    # Database SQLite (fuori da OneDrive)
-```
-
----
+- Swagger UI: `http://127.0.0.1:8000/docs`
+- Health check: `http://127.0.0.1:8000/health`
 
 ## API Reference
 
-Naming convention: **nessun trattino**, categorizzazione per azione.
+La naming convention evita i trattini e organizza gli endpoint per azione e dominio.
 
 ### Insert
 
@@ -154,50 +129,94 @@ Naming convention: **nessun trattino**, categorizzazione per azione.
 |---|---|---|
 | POST | `/insert/userchat` | Inserisce una chat utente |
 | POST | `/insert/logs` | Inserisce e normalizza log raw |
-| POST | `/insert/chatlogs` | Inserisce/sincronizza log da PlatformHero |
+| POST | `/insert/chatlogs` | Inserisce o sincronizza log da PlatformHero |
 
 ### Evaluate
 
 | Metodo | Endpoint | Descrizione |
 |---|---|---|
 | POST | `/evaluate/userchat/{chat_id}` | Valuta una user chat tramite AI Judge |
-| POST | `/evaluate/chatlogs` | Valuta l'ultimo log sincronizzato di una chat (body: `chat_id`) |
+| POST | `/evaluate/chatlogs` | Valuta l'ultimo log sincronizzato di una chat, con `chat_id` nel body |
 
 ### Analytics
 
 | Metodo | Endpoint | Descrizione |
 |---|---|---|
 | GET | `/analytics/userchat/totals` | Totale conversazioni |
-| GET | `/analytics/userchat/mediamessaggi` | Media/min/max messaggi |
+| GET | `/analytics/userchat/mediamessaggi` | Media, minimo e massimo messaggi |
 | GET | `/analytics/userchat/distribuzionesystemprompt` | Distribuzione per system prompt |
 | GET | `/analytics/userchat/trend` | Trend temporale |
 | GET | `/analytics/userchat/topchat` | Top N chat per messaggi |
 | GET | `/analytics/userchat/list` | Listato paginato |
-| GET | `/analytics/userchat/summary` | **Tutto sopra in una chiamata**, incluse evaluations collegate |
-| GET | `/analytics/chatlogs/*` | Equivalenti per `chat_logs` |
-| GET | `/analytics/chatlogs/summary` | **Tutto in una chiamata**, incluse evaluations collegate |
+| GET | `/analytics/userchat/summary` | Overview completa in una sola chiamata, incluse le evaluation collegate |
+| GET | `/analytics/chatlogs/*` | Endpoint equivalenti per `chat_logs` |
+| GET | `/analytics/chatlogs/summary` | Overview completa in una sola chiamata, incluse le evaluation collegate |
 | GET | `/analytics/evaluations/mediascore` | Score medi su tutte le valutazioni |
 | GET | `/analytics/evaluations/list` | Listato valutazioni |
 
-> Gli endpoint `/summary` sono pensati per la dashboard: una sola chiamata HTTP popola un'intera vista Overview, evitando 6-8 round-trip separati.
+Gli endpoint `/summary` sono pensati per la dashboard: una singola chiamata HTTP può popolare una vista Overview completa, riducendo i round-trip.
 
 ### Delete
 
 | Metodo | Endpoint | Descrizione |
 |---|---|---|
-| DELETE | `/delete/userchat/{chat_id}` | Elimina una user chat (cascade manuale verso evaluations) |
-| DELETE | `/delete/chatlogs/{log_id}` | Elimina un chat log (cascade automatica via FK verso evaluations) |
+| DELETE | `/delete/userchat/{chat_id}` | Elimina una chat utente con cascade manuale verso `evaluations` |
+| DELETE | `/delete/chatlogs/{log_id}` | Elimina un chat log con cascade automatica via foreign key |
 | DELETE | `/delete/evaluations/{evaluation_id}` | Elimina una valutazione |
 
----
+## Struttura del progetto
+
+```text
+app/
+├── main.py                  # App FastAPI, CORS e registrazione router
+├── pyrightconfig.json       # Configurazione Pyright
+├── config/
+│   └── settings.py          # Configurazioni lette da .env
+├── core/
+│   ├── auditor_core.py      # Logica del Judge LLM
+│   └── chat_sync_core.py    # Fetch dei log da PlatformHero
+├── database/
+│   ├── connection.py        # Connessione SQLite e PRAGMA foreign_keys=ON
+│   └── schemas.py           # Modelli Pydantic per validazione request
+├── routes/
+│   ├── chatlogs/
+│   │   ├── insert.py        # Inserimento/sync dei log PlatformHero
+│   │   ├── evaluate.py      # Valutazione dei chat log
+│   │   ├── analytics.py     # Analytics sui chat log
+│   │   └── delete.py        # Eliminazione dei chat log
+│   ├── evaluations/
+│   │   ├── analytics.py     # Analytics sulle valutazioni
+│   │   └── delete.py        # Eliminazione delle valutazioni
+│   ├── logs/
+│   │   └── insert.py        # Inserimento e normalizzazione dei log raw
+│   └── userchat/
+│       ├── insert.py        # Inserimento chat utente
+│       ├── evaluate.py      # Valutazione chat utente
+│       ├── analytics.py     # Analytics sulle chat utente
+│       └── delete.py        # Eliminazione chat utente
+└── utils/                   # Utility condivise
+
+notebooks/
+├── database_setup.ipynb     # Setup manuale delle tabelle SQLite
+├── judge_agent.ipynb        # Sperimentazione del Judge locale
+└── log_normalization.ipynb  # Parsing markdown e batch writes
+
+data/
+└── platformhero_mirror.db   # Database SQLite mirror
+
+backup/                      # Versioni precedenti e materiale storico
+
+requirements.txt             # Dipendenze Python
+README.md                    # Documentazione del progetto
+```
 
 ## Database
 
 ### Tabelle principali
 
-- **`user_chats`** — chat inserite manualmente/via API (`id`, `system_prompt`, `messages_json`, `message_count`, `created_at`)
-- **`chat_logs`** — log sincronizzati da PlatformHero (`id`, `assistant_id`, `chat_id`, `message_count`, `messages_json`, `created_at`)
-- **`evaluations`** — output del Judge (10 score + `overall_score`, `feedback`, `issues`)
+- `user_chats`: chat inserite manualmente o via API.
+- `chat_logs`: log sincronizzati da PlatformHero.
+- `evaluations`: output del Judge con 10 score, `overall_score`, `feedback` e `issues`.
 
 ### Integrità referenziale
 
@@ -209,19 +228,20 @@ Naming convention: **nessun trattino**, categorizzazione per azione.
 | `/evaluate/userchat/{id}` | `user_chats.id` |
 
 Per questo motivo:
-- **`chat_logs → evaluations`**: protetta da `FOREIGN KEY ... ON DELETE CASCADE` nel DB
-- **`user_chats → evaluations`**: gestita manualmente in `app/routes/delete/userchat.py` (la FK nativa non può puntare condizionalmente a due tabelle)
 
-`app/database/connection.py` attiva `PRAGMA foreign_keys = ON` ad ogni connessione (SQLite non lo fa di default).
+- `chat_logs -> evaluations` è protetta da `FOREIGN KEY ... ON DELETE CASCADE`.
+- `user_chats -> evaluations` è gestita manualmente nel layer di delete.
 
----
+La connessione SQLite attiva `PRAGMA foreign_keys = ON` ad ogni apertura, perché SQLite non lo fa di default.
 
 ## Note di sviluppo
 
-- **Scoring**: 10 dimensioni valutate dal Judge (technical, completeness, business, consistency, prompt_compliance, helpfulness, tone, hallucination, efficiency, source_reliability). `overall_score` è **sempre calcolato lato Python**, mai dall'LLM, per evitare allucinazioni nel punteggio finale.
-- **Creazione tabelle**: gestita manualmente (vedi `notebooks/database_setup.ipynb`), non automatizzata negli script applicativi.
-- **Naming**: zero trattini negli endpoint (`chatlogs`, non `chat-logs`); zero hardcoding di config (tutto da `.env` via `app/config/settings.py`).
+- Lo scoring copre 10 dimensioni: `technical`, `completeness`, `business`, `consistency`, `prompt_compliance`, `helpfulness`, `tone`, `hallucination`, `efficiency`, `source_reliability`.
+- `overall_score` viene calcolato sempre lato Python, mai direttamente dall’LLM.
+- La creazione delle tabelle è gestita manualmente.
+- La configurazione è centralizzata in `app/config/settings.py` e non hardcoded negli endpoint.
+- Il progetto include un middleware di sanitizzazione del body.
 
----
+## Licenza
 
-
+Inserisci qui la licenza del progetto se vuoi distribuirlo pubblicamente.
