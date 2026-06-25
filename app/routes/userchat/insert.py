@@ -5,8 +5,10 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from app.database.connection import get_db
 from app.database.schemas import UserChatUploadRequest
+from app.auth.dependencies import require_role
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_role("admin", "analyst"))])
+
 
 @router.post("/insert")
 async def upload_user_chat(payload: UserChatUploadRequest, db: sqlite3.Connection = Depends(get_db)):

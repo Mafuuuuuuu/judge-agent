@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 import sqlite3
 from app.database.connection import get_db
+from app.auth.dependencies import require_role      
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_role("admin", "analyst", "user"))])
+
 
 
 @router.get("/analytics/mediascore")

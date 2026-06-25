@@ -16,3 +16,12 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     
     return payload
 
+def require_role(*roles: str):
+    def checker(current_user: dict = Depends(get_current_user)):
+        if current_user.get("role") not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Permessi insufficienti"
+            )
+        return current_user
+    return checker

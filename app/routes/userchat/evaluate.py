@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.database.connection import get_db
 from app.core.auditor_core import valuta_chat_con_LLM, salva_valutazione_db
 from app.config.settings import client_openai, MODEL_NAME
+from app.auth.dependencies import require_role
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_role("admin", "analyst"))])
 
 @router.post("/evaluate/{chat_id}")
 async def evaluate_user_chat(chat_id: str, db: sqlite3.Connection = Depends(get_db)):
@@ -70,3 +71,4 @@ async def evaluate_user_chat(chat_id: str, db: sqlite3.Connection = Depends(get_
         raise HTTPException(status_code=500, detail="Errore nel salvataggio della valutazione.")
         
     return {"status": "success", "evaluation_id": evaluation_uuid, "scores": res_json}
+

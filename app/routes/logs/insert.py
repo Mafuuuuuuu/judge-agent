@@ -1,6 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-router = APIRouter()
+from app.auth.dependencies import require_role
+
+router = APIRouter(dependencies=[Depends(require_role("admin", "analyst"))])
+
 
 @router.post("/insert")
 def insert_logs():

@@ -1,9 +1,9 @@
 import sqlite3
 from fastapi import APIRouter, Depends, HTTPException
 from app.database.connection import get_db
+from app.auth.dependencies import require_role
 
-router = APIRouter()
-
+router = APIRouter(dependencies=[Depends(require_role("admin"))])
 
 @router.delete("/delete/{chat_id}")
 def delete_user_chat(chat_id: str, db: sqlite3.Connection = Depends(get_db)):

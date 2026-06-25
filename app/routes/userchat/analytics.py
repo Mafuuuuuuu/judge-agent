@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, Query
 from typing import Optional
 import sqlite3
 from app.database.connection import get_db
+from app.auth.dependencies import require_role      
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_role("admin", "analyst", "viewer"))])
 
 
 @router.get("/analytics/totals")
@@ -11,7 +12,7 @@ def userchat_totals(
     from_date: Optional[str] = Query(None, description="ISO date, es. 2024-01-01"),
     to_date: Optional[str] = Query(None, description="ISO date, es. 2024-12-31"),
     db: sqlite3.Connection = Depends(get_db),
-):
+):      
     query = "SELECT COUNT(*) as totale FROM user_chats WHERE 1=1"
     params = []
 

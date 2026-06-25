@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 import sqlite3
+from app.auth.dependencies import require_role
 from app.database.connection import get_db
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_role("admin", "analyst", "viewer"))])
 
 
 @router.get("/analytics/totals")

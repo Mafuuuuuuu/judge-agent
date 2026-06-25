@@ -1,12 +1,13 @@
 import sqlite3
 from fastapi import APIRouter, Depends, HTTPException
+from app.auth.dependencies import require_role
 from app.database.connection import get_db
 from app.database.schemas import SyncRequest
 from app.config.settings import API_KEY_REMOTA
 from app.core.chat_sync_core import fetch_chat_messages
 from app.core.auditor_core import salva_chat_su_db
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_role("admin", "analyst"))])
 
 @router.post("/insert")
 async def sync_chat(payload: SyncRequest, db: sqlite3.Connection = Depends(get_db)):
