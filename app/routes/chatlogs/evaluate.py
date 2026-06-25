@@ -3,14 +3,15 @@ import json
 import sqlite3
 import unicodedata
 from fastapi import APIRouter, Depends, HTTPException
+from app.auth.dependencies import require_role
 from app.database.connection import get_db
 from app.database.schemas import AuditRequest
 from app.core.auditor_core import valuta_chat_con_LLM, salva_valutazione_db
 from app.config.settings import client_openai, MODEL_NAME
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_role("admin", "analyst"))])
 
-@router.post("/insert")
+@router.post("/evaluate")
 async def evaluate_chat(payload: AuditRequest, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     

@@ -87,3 +87,5 @@ def init_db():
 async def database_lifespan(app: FastAPI):
     init_db()
     yield
+
+

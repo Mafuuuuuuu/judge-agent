@@ -4,7 +4,7 @@ import sqlite3
 from app.database.connection import get_db
 from app.auth.dependencies import require_role      
 
-router = APIRouter(dependencies=[Depends(require_role("admin", "analyst", "user"))])
+router = APIRouter(dependencies=[Depends(require_role("admin", "analyst", "viewer"))])
 
 
 

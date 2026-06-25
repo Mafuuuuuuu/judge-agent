@@ -4,3 +4,5 @@ MODEL_NAME=id_del_modello
 DB_PATH=percorso_file_database
 CORS_ORIGINS=url_del_frontend
 PORT=porta_dove_collegarsi_con_fastapiper
+JWT_SECRET_KEY=your-secret-key-here
+JWT_EXPIRE_MINUTES=minuti_di_scadenza_del_token

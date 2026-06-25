@@ -3,9 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config.settings import API_TITLE, API_VERSION, API_DESCRIPTION, CORS_ORIGINS
 from app.utils.middleware import SanitizeBodyMiddleware
 from app.database import database_lifespan
+from app.utils import configure_limiter
 
 # Importiamo direttamente il router 
 from app.routes import api_router
+
 
 app = FastAPI(
     title=API_TITLE,
@@ -14,6 +16,9 @@ app = FastAPI(
     lifespan=database_lifespan,
     swagger_ui_parameters={"persistAuthorization": True}
 )
+
+configure_limiter(app)
+
 
 # Middleware per pulizia del body
 app.add_middleware(SanitizeBodyMiddleware)
