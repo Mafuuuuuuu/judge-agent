@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
+import logging
 import sqlite3
+
 from app.auth.dependencies import require_role
 from app.database.connection import get_db
 
+logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(require_role("admin", "analyst", "viewer"))])
 
 
@@ -127,19 +130,29 @@ def chatlogs_top_chat(
     }
 
 @router.get("/analytics/list")
-def chatlogs_list(db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
+def chatlogs_list(
+    page: int = Query(1, ge=1, description="Numero di pagina"),
+    size: int = Query(50, ge=1, le=500, description="Elementi per pagina"),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    offset = (page - 1) * size
     try:
-        cursor.execute("""
-            SELECT 
-                id, assistant_id, chat_id, message_count, messages_json, created_at
+        total = db.execute("SELECT COUNT(*) FROM chat_logs").fetchone()[0]
+        rows = db.execute("""
+            SELECT id, assistant_id, chat_id, message_count, messages_json, created_at
             FROM chat_logs
             ORDER BY created_at DESC
-        """)
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
-    except sqlite3.OperationalError as e:
-        raise HTTPException(status_code=500, detail=f"Errore tabella chat_logs. Dettaglio: {str(e)}")
+            LIMIT ? OFFSET ?
+        """, (size, offset)).fetchall()
+        return {
+            "page": page,
+            "size": size,
+            "total": total,
+            "items": [dict(r) for r in rows],
+        }
+    except sqlite3.OperationalError:
+        logger.exception("Errore DB in chatlogs_list")
+        raise HTTPException(status_code=500, detail="Errore di struttura database.")
     
 
 @router.get("/analytics/summary")

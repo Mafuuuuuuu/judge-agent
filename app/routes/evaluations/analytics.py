@@ -1,8 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import Optional
+import logging
 import sqlite3
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.auth.dependencies import require_role
 from app.database.connection import get_db
-from app.auth.dependencies import require_role      
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(require_role("admin", "analyst", "viewer"))])
 
@@ -65,23 +70,31 @@ def evaluations_media_score(
     }
 
 @router.get("/analytics/list")
-def evaluations_list(db: sqlite3.Connection = Depends(get_db)):
-    cursor = db.cursor()
+def evaluations_list(
+    page: int = Query(1, ge=1, description="Numero di pagina"),
+    size: int = Query(50, ge=1, le=500, description="Elementi per pagina"),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    offset = (page - 1) * size
     try:
-        cursor.execute("""
-            SELECT 
+        total = db.execute("SELECT COUNT(*) FROM evaluations").fetchone()[0]
+        rows = db.execute("""
+            SELECT
                 id, log_id, technical_score, completeness_score, business_score,
                 consistency_score, prompt_compliance_score, helpfulness_score, tone_score,
                 hallucination_score, efficiency_score, source_reliability_score,
                 overall_score, feedback, issues, created_at
             FROM evaluations
             ORDER BY created_at DESC
-        """)
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
-    except sqlite3.OperationalError as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Errore di struttura database. Verifica il nome della tabella o della vista. Dettaglio: {str(e)}"
-        )
+            LIMIT ? OFFSET ?
+        """, (size, offset)).fetchall()
+        return {
+            "page": page,
+            "size": size,
+            "total": total,
+            "items": [dict(r) for r in rows],
+        }
+    except sqlite3.OperationalError:
+        logger.exception("Errore DB in evaluations_list")
+        raise HTTPException(status_code=500, detail="Errore di struttura database.")
     

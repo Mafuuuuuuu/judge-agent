@@ -1,8 +1,12 @@
+import logging
 import sqlite3
+
 from fastapi import APIRouter, Depends, HTTPException
+
 from app.auth.dependencies import require_role
 from app.database.connection import get_db
 
+logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(require_role("admin"))])
 
 
@@ -26,9 +30,7 @@ def delete_chat_log(log_id: str, db: sqlite3.Connection = Depends(get_db)):
 
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Errore interno durante l'eliminazione del log: {str(e)}"
-        )
+    except Exception:
+        logger.exception("Errore eliminazione log_id=%s", log_id)
+        raise HTTPException(status_code=500, detail="Errore interno durante l'eliminazione.")
     
