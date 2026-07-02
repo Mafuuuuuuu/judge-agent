@@ -37,23 +37,40 @@
 
 ---
 
-## Fase 2 — Ottimizzazione codice ⬜ DA FARE
+## Fase 2 — Ottimizzazione codice ✅ COMPLETATA (commit `8fd5992`)
 
 ### Frontend
-- [ ] Rimuovere warning di build:
-  - import inutilizzato `ScoreRadarComponent` in
-    `frontend/src/app/features/evaluations/evaluations-list/evaluations-list.component.ts:18`
-  - `??` ridondanti in `analytics.component.ts:440-441` e `dashboard.component.ts:67`
-  - budget SCSS superato su `sidebar`, `analytics`, `evaluations-list` (alzare budget o snellire stile)
-- [ ] Deduplicare i 4 service (`userchat`, `chatlogs`, `evaluations`, `auth`): base URL e pattern CRUD → possibile service generico/base.
-- [ ] `trackBy` nelle liste, `ChangeDetectionStrategy.OnPush` / signals dove manca.
-- [ ] Gestione uniforme degli stati loading/errore (già presenti `loading-skeleton` e `toast`).
-- [ ] Verificare l'allineamento tra i model TypeScript (`core/models/*.ts`) e le response reali del backend, in particolare gli endpoint `/summary` e i 10 score.
+- [x] **Bug di integrazione trovato e corretto**: `evaluations` e `chatlogs` `getList()`
+  tipavano la risposta come array, ma il backend risponde paginato
+  (`{page, size, total, items}`) → le liste sarebbero rimaste vuote a runtime.
+  I service ora chiedono `size=500` e spacchettano `items` (filtri/paginazione
+  restano lato client). `userchat` era già allineato (`{totale, risultati}`).
+- [x] `EvaluationMediaScore` reso nullable: con zero valutazioni SQLite
+  `AVG/MIN/MAX` restituiscono `NULL`; i `?? 'N/A'` nei template ora sono
+  legittimi (era il model a essere sbagliato, non i fallback).
+- [x] Rimosso import inutilizzato `ScoreRadarComponent` da `evaluations-list`.
+- [x] `trackBy` per id (non per indice) nella lista valutazioni; le altre liste
+  usano `@for` con `track` o iterano liste statiche minuscole.
+- [x] Tolti 6 `?.` superflui in `analytics.component.ts` (NG8107).
+- [x] Budget SCSS `anyComponentStyle` alzato a 8kB warning / 16kB error.
+- [x] **Build di produzione: 0 warning, 0 errori.**
+- [x] ~~Deduplicare i 4 service~~ → **scartato consapevolmente**: i service sono
+  piccoli (30-40 righe) e con differenze reali (cache in evaluations, `limit/offset`
+  vs `page/size`, evaluate con/senza body). Una base class generica sarebbe
+  sovra-ingegneria.
+- [x] Stati loading/errore: già uniformi via `loading-skeleton` + `toast` — ok così.
+- [ ] `ChangeDetectionStrategy.OnPush` / signals ovunque → rimandato: refactor
+  ampio a beneficio marginale su questa scala; da valutare solo se emergono
+  problemi di performance.
 
 ### Backend
-- [ ] Aggiornare il `README.md`: gli endpoint reali hanno prefisso `/api` e sono protetti da auth JWT (il README attuale documenta percorsi senza `/api` e non menziona l'auth).
-- [ ] Verificare eventuali query N+1 negli endpoint `/summary`.
-- [ ] Coerenza nella gestione degli errori tra i router.
+- [x] `README.md` aggiornato: prefisso `/api`, sezione Autenticazione con matrice
+  ruoli (admin/analyst/viewer), endpoint auth con rate limit, shape delle risposte
+  paginate, variabili `JWT_SECRET_KEY`/`JWT_EXPIRE_MINUTES`, struttura progetto
+  con `app/auth/`, `app/test/`, `app/utils/` e `frontend/`.
+- [x] Verificati gli endpoint `/summary`: 6 query aggregate fisse, nessun N+1.
+- [x] Gestione errori: pattern coerente (try/except `sqlite3.OperationalError` →
+  HTTP 500 con log) — nessun intervento necessario.
 
 ---
 
