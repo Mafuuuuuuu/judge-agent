@@ -286,10 +286,11 @@ README.md                    # Documentazione del progetto
 | `/evaluate/chatlogs` | `chat_logs.id` |
 | `/evaluate/userchat/{id}` | `user_chats.id` |
 
-Per questo motivo:
-
-- `chat_logs -> evaluations` è protetta da `FOREIGN KEY ... ON DELETE CASCADE`.
-- `user_chats -> evaluations` è gestita manualmente nel layer di delete.
+Poiché `log_id` è polimorfico, la tabella `evaluations` **non ha** un vincolo
+`FOREIGN KEY` (un FK rigido verso `chat_logs` farebbe fallire ogni valutazione
+delle user chat): entrambe le cascate sono gestite manualmente nel layer di
+delete. I database creati con il vecchio schema (che aveva il FK) vengono
+migrati automaticamente all'avvio da `init_db`.
 
 La connessione SQLite attiva `PRAGMA foreign_keys = ON` ad ogni apertura, perché SQLite non lo fa di default.
 

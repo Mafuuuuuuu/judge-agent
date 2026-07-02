@@ -14,18 +14,21 @@ router = APIRouter(dependencies=[Depends(require_role("admin"))])
 def delete_chat_log(log_id: str, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     try:
+        # Cascade manuale come per user_chats: evaluations.log_id e' polimorfico
+        # e la tabella non ha (piu') un FOREIGN KEY verso chat_logs
         cursor.execute("DELETE FROM chat_logs WHERE id = ?", (log_id,))
-        db.commit()
-
         if cursor.rowcount == 0:
+            db.rollback()
             raise HTTPException(
                 status_code=404,
                 detail=f"Log della chat con ID {log_id} non trovato nel database."
             )
+        cursor.execute("DELETE FROM evaluations WHERE log_id = ?", (log_id,))
+        db.commit()
 
         return {
             "status": "success",
-            "message": f"Log della chat {log_id} eliminato correttamente (evaluations collegate rimosse automaticamente via FK)."
+            "message": f"Log della chat {log_id} eliminato correttamente insieme alle evaluations collegate."
         }
 
     except HTTPException:
