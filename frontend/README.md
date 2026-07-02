@@ -1,59 +1,42 @@
-# Frontend
+# Frontend — Judge Agent Dashboard
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.27.
+Dashboard Angular 20 per il layer di AI Quality Intelligence: visualizza
+analytics, liste e valutazioni prodotte dal backend FastAPI (vedi il
+[README principale](../README.md) per architettura, API e autenticazione).
 
-## Development server
+## Avvio
 
-To start a local development server, run:
-
-```bash
-ng serve
+```powershell
+npm install --legacy-peer-deps   # solo la prima volta
+npm start                        # dev server su http://localhost:4200
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Richiede il backend attivo sulla porta 8000: le chiamate `/api/*` vengono
+inoltrate dal dev server tramite `proxy.conf.json`.
 
-## Code scaffolding
+Build di produzione: `npm run build` (output in `dist/frontend`).
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Struttura
 
-```bash
-ng generate component component-name
+```text
+src/app/
+├── core/
+│   ├── guards/          # authGuard (ruoli da route data) e guestGuard
+│   ├── interceptors/    # Bearer token + gestione 401/403/429
+│   ├── models/          # Tipi delle risposte API (inclusi i paginati)
+│   └── services/        # AuthService (signals) + un service per dominio
+├── features/            # Pagine lazy-loaded (dashboard, liste, analytics…)
+└── shared/              # Componenti riusabili: kpi-card, score-badge,
+                         # grafici (radar/trend/bar/doughnut), toast, dialog…
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Note
 
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- **Ruoli**: le route dichiarano i ruoli ammessi in `data.roles`; la UI
+  nasconde le azioni non permesse (es. i viewer non vedono Valuta/Elimina).
+- **Liste paginate**: il backend risponde `{page, size, total, items}`
+  (evaluations/chatlogs) o `{totale, limit, offset, risultati}` (userchat);
+  i service spacchettano la risposta, filtri e paginazione sono lato client.
+- **Grafici**: i canvas Chart.js hanno larghezza intrinseca — le grid usano
+  `minmax(0, 1fr)` per permettere alle colonne di restringersi (responsive).
+- Il token JWT è salvato in `localStorage` con chiave `judge_agent_token`.

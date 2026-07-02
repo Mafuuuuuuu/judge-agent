@@ -1,7 +1,7 @@
 # PlatformHero AI Quality Intelligence Layer
 
 **Versione:** 1.2.0  
-**Stack:** Python 3.14, FastAPI, SQLite, Jupyter
+**Stack:** Python 3.14, FastAPI, SQLite, Jupyter — frontend Angular 20
 
 PlatformHero AI Quality Intelligence Layer è un sistema di **AI Quality & Observability** che si innesta sopra PlatformHero senza sostituirlo. Recupera i log delle conversazioni del Customer Agent, li valuta tramite un approccio **LLM-as-Judge** multi-dimensionale e restituisce analytics aggregate per monitorare la qualità operativa.
 
@@ -110,6 +110,8 @@ Nota: il file `.env` non va committato ed è già escluso tramite `.gitignore`.
 
 ## Avvio
 
+### Backend
+
 Avvia il server FastAPI con:
 
 ```powershell
@@ -120,6 +122,26 @@ Interfacce e endpoint utili:
 
 - Swagger UI: `http://127.0.0.1:8000/docs`
 - Health check: `http://127.0.0.1:8000/health`
+
+### Frontend (dashboard Angular)
+
+In un secondo terminale:
+
+```powershell
+cd frontend
+npm install --legacy-peer-deps   # solo la prima volta
+npm start                        # http://localhost:4200
+```
+
+Il dev server usa `proxy.conf.json` per inoltrare le chiamate `/api/*` al
+backend sulla porta 8000: backend e frontend vanno avviati entrambi.
+Il flag `--legacy-peer-deps` serve per i pin esatti interni dei pacchetti
+Angular 20 (conflitto noto del resolver npm).
+
+Stack frontend: Angular 20 (standalone components, signals), ng2-charts /
+Chart.js, SCSS. La UI adatta le azioni al ruolo dell'utente loggato:
+i `viewer` vedono solo le sezioni di consultazione, gli `analyst` possono
+inserire e valutare, gli `admin` hanno anche eliminazione e gestione utenti.
 
 ## Autenticazione
 

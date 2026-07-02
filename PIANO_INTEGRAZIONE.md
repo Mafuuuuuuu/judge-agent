@@ -110,11 +110,28 @@ già solido e coerente — nessun restyling gratuito, solo fix mirati.
 
 ---
 
-## Fase 4 — Chiusura ⬜ DA FARE
+## Fase 4 — Chiusura ✅ COMPLETATA
 
-- [ ] Test manuale per ruolo: `admin`, `analyst`, `viewer`.
-- [ ] Aggiornare `README.md` con la sezione frontend (setup, avvio `ng serve`, proxy).
-- [ ] Apertura Pull Request da `feat/frontend-integration`.
+- [x] **Test per ruolo su tre livelli** (admin `mahfuj`, analyst `analist2`, viewer `viewer2`):
+  - *API*: matrice permessi verificata — analytics 200 per tutti; insert 200
+    admin/analyst e 403 viewer; delete solo admin (404 su id inesistente =
+    autorizzato); `/api/auth/users` solo admin (403 per gli altri).
+  - *UI (viewer)*: la sidebar nasconde "Gestione Utenti"; le liste non mostrano
+    Nuova Chat / Valuta / Elimina — solo Aggiorna e paginazione.
+  - *Routing (viewer)*: navigazione diretta a `/admin/users` → redirect a
+    `/dashboard` dal guard.
+  - Le 2 chat vuote create dal test insert sono state eliminate dal DB.
+- [x] README principale: sezione Avvio sdoppiata backend/frontend (con nota
+  `--legacy-peer-deps` e proxy), stack aggiornato con Angular 20, nota sui
+  ruoli in UI.
+- [x] `frontend/README.md`: sostituito il boilerplate Angular CLI con doc
+  reale (avvio, struttura cartelle, note su ruoli/paginazione/grafici).
+- [ ] Pull Request verso `main` — da aprire quando decidi
+  (remote: `github.com/Mafuuuuuuu/judge-agent`).
+
+### Nota (gap minore, non bloccante)
+`POST /api/userchat/insert` accetta `messages: []` e crea una chat vuota:
+valutare una validazione `min_length=1` in `database/schemas.py`.
 
 ---
 
