@@ -6,6 +6,7 @@ interface PreviewMessage {
   roleLabel: string;
   content: string;
   time: string | null;
+  ts: number | null;
 }
 
 /**
@@ -185,6 +186,13 @@ export class ChatPreviewComponent implements OnChanges {
     }
 
     this.messages = raw.map(m => this.normalize(m));
+
+    // PlatformHero salva i messaggi dal piu' recente al piu' vecchio: se tutti
+    // hanno un timestamp li riordiniamo cronologicamente. Senza timestamp
+    // (formato user_chats) l'ordine dell'array e' gia' quello di conversazione.
+    if (this.messages.length > 1 && this.messages.every(m => m.ts !== null)) {
+      this.messages.sort((a, b) => a.ts! - b.ts!);
+    }
   }
 
   private normalize(m: any): PreviewMessage {
@@ -202,17 +210,22 @@ export class ChatPreviewComponent implements OnChanges {
       content = JSON.stringify(m.content);
     }
 
-    // created_timestamp: epoch in secondi nel formato PlatformHero
+    // created_timestamp: epoch nel formato PlatformHero; sopra 1e12 e' gia'
+    // in millisecondi (13 cifre), altrimenti in secondi
     let time: string | null = null;
-    const ts = Number(m?.created_timestamp);
-    if (Number.isFinite(ts) && ts > 0) {
-      const d = new Date(ts * 1000);
+    let ts: number | null = null;
+    const rawTs = Number(m?.created_timestamp);
+    if (Number.isFinite(rawTs) && rawTs > 0) {
+      ts = rawTs > 1e12 ? rawTs : rawTs * 1000;
+      const d = new Date(ts);
       if (!isNaN(d.getTime())) {
         time = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+      } else {
+        ts = null;
       }
     }
 
     const labels: Record<string, string> = { user: 'Utente', assistant: 'Assistente' };
-    return { role, roleLabel: labels[role] ?? roleRaw, content, time };
+    return { role, roleLabel: labels[role] ?? roleRaw, content, time, ts };
   }
 }
