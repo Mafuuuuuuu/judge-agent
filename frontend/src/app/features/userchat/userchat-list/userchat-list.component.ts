@@ -7,6 +7,7 @@ import { ScoreBadgeComponent } from '../../../shared/score-badge/score-badge.com
 import { ScoreRadarComponent } from '../../../shared/score-radar/score-radar.component';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 import { LoadingSkeletonComponent } from '../../../shared/loading-skeleton/loading-skeleton.component';
+import { ChatPreviewComponent } from '../../../shared/chat-preview/chat-preview.component';
 import { UserChatRecord } from '../../../core/models/userchat.model';
 import { AuthService } from '../../../core/services/auth.service';
 
@@ -16,7 +17,8 @@ import { AuthService } from '../../../core/services/auth.service';
   imports: [
     CommonModule, RouterLink,
     ScoreBadgeComponent, ScoreRadarComponent,
-    ConfirmDialogComponent, LoadingSkeletonComponent
+    ConfirmDialogComponent, LoadingSkeletonComponent,
+    ChatPreviewComponent
   ],
   template: `
     <div class="fade-in">
@@ -49,6 +51,7 @@ import { AuthService } from '../../../core/services/auth.service';
             <table>
               <thead>
                 <tr>
+                  <th style="width:28px"></th>
                   <th>ID</th>
                   <th>System Prompt</th>
                   <th>Messaggi</th>
@@ -58,12 +61,13 @@ import { AuthService } from '../../../core/services/auth.service';
               </thead>
               <tbody>
                 @for (chat of chats; track chat.id) {
-                  <tr>
+                  <tr class="chat-row" [class.chat-row--open]="expanded === chat.id" (click)="togglePreview(chat.id)">
+                    <td><span class="mat-icon expand-chevron" [class.expand-chevron--open]="expanded === chat.id">chevron_right</span></td>
                     <td class="truncate">{{ chat.id }}</td>
                     <td class="truncate text-muted">{{ chat.system_prompt || '—' }}</td>
                     <td><span class="badge badge--accent">{{ chat.message_count }}</span></td>
                     <td class="text-sm text-muted">{{ chat.created_at | date:'dd/MM/yyyy HH:mm' }}</td>
-                    <td>
+                    <td (click)="$event.stopPropagation()">
                       <div class="flex gap-8">
                         @if (hasWriteRole()) {
                           <button
@@ -86,10 +90,23 @@ import { AuthService } from '../../../core/services/auth.service';
                       </div>
                     </td>
                   </tr>
+                  <!-- Anteprima conversazione -->
+                  @if (expanded === chat.id) {
+                    <tr class="preview-row">
+                      <td colspan="6">
+                        <div class="preview-wrap">
+                          <app-chat-preview
+                            [messagesJson]="chat.messages_json"
+                            [systemPrompt]="chat.system_prompt">
+                          </app-chat-preview>
+                        </div>
+                      </td>
+                    </tr>
+                  }
                   <!-- Evaluation result row -->
                   @if (evalResults[chat.id]) {
                     <tr class="eval-row">
-                      <td colspan="5">
+                      <td colspan="6">
                         <div class="eval-expand card--glass" style="padding: 16px; border-radius: 10px; margin: 4px 0;">
                           <div class="flex-between mb-16">
                             <strong style="color:#6366f1;font-size:13px;text-transform:uppercase;letter-spacing:0.06em">Risultato Valutazione</strong>
@@ -123,7 +140,7 @@ import { AuthService } from '../../../core/services/auth.service';
                   <!-- Error row -->
                   @if (evalErrors[chat.id]) {
                     <tr class="error-row">
-                      <td colspan="5">
+                      <td colspan="6">
                         <div class="error-expand" style="padding:14px 16px;margin:4px 0;border-radius:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25)">
                           <div class="flex gap-10" style="align-items:flex-start">
                             <span class="mat-icon" style="font-size:18px;flex-shrink:0;color:#ef4444">warning</span>
@@ -163,6 +180,22 @@ import { AuthService } from '../../../core/services/auth.service';
   styles: [`
     .eval-row td { background: rgba(99,102,241,0.03); }
     .eval-expand { background: linear-gradient(135deg, rgba(99,102,241,0.05) 0%, rgba(139,92,246,0.05) 100%); border: 1px solid rgba(99,102,241,0.2); }
+
+    .chat-row { cursor: pointer; }
+    .chat-row:hover td { background: rgba(99,102,241,0.04); }
+    .chat-row--open td { background: rgba(99,102,241,0.06); }
+    .expand-chevron {
+      font-size: 18px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease, color 0.2s ease;
+      display: inline-block;
+    }
+    .expand-chevron--open { transform: rotate(90deg); color: var(--accent); }
+    .preview-row td { background: rgba(99,102,241,0.03); }
+    .preview-wrap {
+      padding: 14px 8px;
+      margin: 4px 0;
+    }
   `]
 })
 export class UserchatListComponent implements OnInit {
@@ -180,11 +213,17 @@ export class UserchatListComponent implements OnInit {
   evalErrors: Record<string, string> = {};
   showDelete = false;
   pendingDelete: string | null = null;
+  expanded: string | null = null;
 
   ngOnInit() { this.load(); }
 
+  togglePreview(id: string) {
+    this.expanded = this.expanded === id ? null : id;
+  }
+
   load() {
     this.loading = true;
+    this.expanded = null;
     this.svc.getList(this.limit, this.offset).subscribe({
       next: r => { this.chats = r.risultati; this.total = r.totale; this.loading = false; },
       error: () => { this.toast.error('Errore caricamento chat'); this.loading = false; }

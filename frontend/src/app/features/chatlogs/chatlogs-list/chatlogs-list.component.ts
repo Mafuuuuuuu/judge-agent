@@ -7,13 +7,14 @@ import { ToastService } from '../../../shared/toast/toast.service';
 import { ScoreBadgeComponent } from '../../../shared/score-badge/score-badge.component';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 import { LoadingSkeletonComponent } from '../../../shared/loading-skeleton/loading-skeleton.component';
+import { ChatPreviewComponent } from '../../../shared/chat-preview/chat-preview.component';
 import { ChatlogRecord } from '../../../core/models/chatlog.model';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-chatlogs-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, ScoreBadgeComponent, ConfirmDialogComponent, LoadingSkeletonComponent],
+  imports: [CommonModule, RouterLink, FormsModule, ScoreBadgeComponent, ConfirmDialogComponent, LoadingSkeletonComponent, ChatPreviewComponent],
   template: `
     <div class="fade-in">
       <div class="page-header flex-between">
@@ -76,6 +77,7 @@ import { AuthService } from '../../../core/services/auth.service';
             <table>
               <thead>
                 <tr>
+                  <th style="width:28px"></th>
                   <th>Log ID</th>
                   <th>Chat ID</th>
                   <th>Assistant ID</th>
@@ -86,13 +88,14 @@ import { AuthService } from '../../../core/services/auth.service';
               </thead>
               <tbody>
                 @for (log of logs; track log.id) {
-                  <tr>
+                  <tr class="chat-row" [class.chat-row--open]="expanded === log.id" (click)="togglePreview(log.id)">
+                    <td><span class="mat-icon expand-chevron" [class.expand-chevron--open]="expanded === log.id">chevron_right</span></td>
                     <td class="truncate" style="max-width:140px">{{ log.id }}</td>
                     <td class="truncate text-muted" style="max-width:140px">{{ log.chat_id }}</td>
                     <td class="truncate text-muted" style="max-width:120px">{{ log.assistant_id }}</td>
                     <td><span class="badge badge--accent">{{ log.message_count }}</span></td>
                     <td class="text-sm text-muted">{{ log.created_at | date:'dd/MM/yy HH:mm' }}</td>
-                    <td>
+                    <td (click)="$event.stopPropagation()">
                       @if (hasAdminRole()) {
                         <button class="btn btn--danger btn--sm" (click)="askDelete(log.id)"><span class="mat-icon" style="font-size:16px">delete</span></button>
                       } @else {
@@ -100,6 +103,15 @@ import { AuthService } from '../../../core/services/auth.service';
                       }
                     </td>
                   </tr>
+                  @if (expanded === log.id) {
+                    <tr class="preview-row">
+                      <td colspan="7">
+                        <div class="preview-wrap">
+                          <app-chat-preview [messagesJson]="log.messages_json"></app-chat-preview>
+                        </div>
+                      </td>
+                    </tr>
+                  }
                 }
               </tbody>
             </table>
@@ -115,7 +127,20 @@ import { AuthService } from '../../../core/services/auth.service';
       </app-confirm-dialog>
     </div>
   `,
-  styles: []
+  styles: [`
+    .chat-row { cursor: pointer; }
+    .chat-row:hover td { background: rgba(99,102,241,0.04); }
+    .chat-row--open td { background: rgba(99,102,241,0.06); }
+    .expand-chevron {
+      font-size: 18px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease, color 0.2s ease;
+      display: inline-block;
+    }
+    .expand-chevron--open { transform: rotate(90deg); color: var(--accent); }
+    .preview-row td { background: rgba(99,102,241,0.03); }
+    .preview-wrap { padding: 14px 8px; margin: 4px 0; }
+  `]
 })
 export class ChatlogsListComponent implements OnInit {
   private svc   = inject(ChatlogsService);
@@ -130,12 +155,17 @@ export class ChatlogsListComponent implements OnInit {
   evalResult: any = null;
   showDelete = false;
   pendingDelete: string | null = null;
+  expanded: string | null = null;
 
-  // for ngModel without FormsModule import — need to add
   ngOnInit() { this.load(); }
+
+  togglePreview(id: string) {
+    this.expanded = this.expanded === id ? null : id;
+  }
 
   load() {
     this.loading = true;
+    this.expanded = null;
     this.svc.getList().subscribe({
       next: r => { this.logs = r; this.loading = false; },
       error: () => { this.toast.error('Errore caricamento log'); this.loading = false; }

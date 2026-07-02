@@ -6,6 +6,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["start", "--prefix", "frontend"],
       "port": 4200
+    },
+    {
+      "name": "frontend-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--prefix", "frontend", "ng", "serve", "--port", "4201"],
+      "port": 4201
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--port", "8000"],
+      "port": 8000
     }
   ]
 }
