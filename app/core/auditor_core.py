@@ -33,6 +33,22 @@ def ricalcola_overall_score(dati: dict) -> dict:
     return dati
 
 
+def _norm_score(value) -> float | None:
+    """Normalizza uno score dell'LLM: float nel range 0-10, altrimenti None.
+
+    SQLite non applica type check sulle colonne: senza questa guardia una
+    risposta malformata del Judge (stringhe, valori fuori scala) finirebbe
+    in tabella cosi' com'e' e inquinerebbe le medie delle analytics.
+    """
+    if value is None or value == "":
+        return None
+    try:
+        v = float(value)
+    except (ValueError, TypeError):
+        return None
+    return v if 0.0 <= v <= 10.0 else None
+
+
 def salva_valutazione_db(conn, log_id: str, risposta_json_str: str) -> str | None:
     try:
         dati = json.loads(risposta_json_str)
@@ -54,12 +70,12 @@ def salva_valutazione_db(conn, log_id: str, risposta_json_str: str) -> str | Non
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         internal_eval_id, log_id,
-        dati.get("overall_score"), dati.get("technical_score"),
-        dati.get("completeness_score"), dati.get("business_score"),
-        dati.get("consistency_score"), dati.get("prompt_compliance_score"),
-        dati.get("helpfulness_score"), dati.get("tone_score"),
-        dati.get("hallucination_score"), dati.get("efficiency_score"),
-        dati.get("source_reliability_score"),
+        _norm_score(dati.get("overall_score")), _norm_score(dati.get("technical_score")),
+        _norm_score(dati.get("completeness_score")), _norm_score(dati.get("business_score")),
+        _norm_score(dati.get("consistency_score")), _norm_score(dati.get("prompt_compliance_score")),
+        _norm_score(dati.get("helpfulness_score")), _norm_score(dati.get("tone_score")),
+        _norm_score(dati.get("hallucination_score")), _norm_score(dati.get("efficiency_score")),
+        _norm_score(dati.get("source_reliability_score")),
         dati.get("feedback"), dati.get("issues"), created_at,
     ))
     conn.commit()

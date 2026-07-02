@@ -21,3 +21,5 @@ data/platformhero_mirror.db
 # Database locali e dataset pesanti
 data/
 *.sqbpro
+# Config locale Claude Code (permessi personali)
+.claude/settings.local.json

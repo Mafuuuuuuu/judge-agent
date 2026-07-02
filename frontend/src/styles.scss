@@ -105,6 +105,7 @@ input, textarea, select { font-family: inherit; }
   padding: 24px;
   box-shadow: var(--shadow-sm);
   transition: var(--transition);
+  min-width: 0; /* permette alla card di restringersi dentro le grid */
 
   &:hover { border-color: var(--border-accent); box-shadow: var(--shadow-md); }
 
@@ -130,21 +131,26 @@ input, textarea, select { font-family: inherit; }
 }
 
 /* ─── Grid helpers ───────────────────────────────────────────── */
-.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+/* minmax(0, 1fr) anziché 1fr: i canvas dei grafici hanno larghezza intrinseca
+   e con minmax(auto, 1fr) impedirebbero alle colonne di restringersi (overflow) */
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+
+/* I grafici non devono mai forzare la larghezza del contenitore */
+canvas { max-width: 100%; }
 
 @media (max-width: 1200px) {
-  .grid-4 { grid-template-columns: repeat(2, 1fr); }
-  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
-  .grid-2 { grid-template-columns: 1fr; }
+  .grid-2 { grid-template-columns: minmax(0, 1fr); }
   .main-content { padding: 20px; }
 }
 @media (max-width: 768px) {
   .main-content { margin-left: 64px; padding: 14px; }
-  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: minmax(0, 1fr); }
   .page-header { gap: 12px; }
   .page-header.flex-between { flex-wrap: wrap; }
   .card { padding: 16px; }
