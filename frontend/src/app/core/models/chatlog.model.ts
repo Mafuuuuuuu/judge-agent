@@ -44,6 +44,14 @@ export interface ChatlogRecord {
   created_at: string;
 }
 
+// Risposta paginata di GET /api/chatlogs/analytics/list
+export interface ChatlogListResponse {
+  page: number;
+  size: number;
+  total: number;
+  items: ChatlogRecord[];
+}
+
 export interface ChatlogInsertRequest {
   assistant_id: string;
   chat_id: string;

@@ -120,7 +120,7 @@ import { EvaluationMediaScore, SCORE_LABELS, Evaluation } from '../../core/model
                   <div class="card-title">Trend Volume User Chats</div>
                   <span class="badge badge--accent">User Chat</span>
                 </div>
-                @if (uc && (uc.trend_giornaliero?.length ?? 0) > 0) {
+                @if (uc && uc.trend_giornaliero.length > 0) {
                   <app-trend-chart [data]="uc.trend_giornaliero" label="User Chat"></app-trend-chart>
                 } @else {
                   <div class="empty-state">
@@ -135,7 +135,7 @@ import { EvaluationMediaScore, SCORE_LABELS, Evaluation } from '../../core/model
                   <div class="card-title">Trend Volume Chat Logs</div>
                   <span class="badge badge--info">Chat Logs</span>
                 </div>
-                @if (cl && (cl.trend_giornaliero?.length ?? 0) > 0) {
+                @if (cl && cl.trend_giornaliero.length > 0) {
                   <app-trend-chart [data]="cl.trend_giornaliero" label="Chat Logs"></app-trend-chart>
                 } @else {
                   <div class="empty-state">
@@ -256,7 +256,7 @@ import { EvaluationMediaScore, SCORE_LABELS, Evaluation } from '../../core/model
             <!-- Trend -->
             <div class="card section" style="overflow:hidden;min-width:0">
               <div class="card-title">Trend Giornaliero User Chat</div>
-              @if ((uc.trend_giornaliero?.length ?? 0) > 0) {
+              @if (uc.trend_giornaliero.length > 0) {
                 <app-trend-chart [data]="uc.trend_giornaliero" label="User Chat"></app-trend-chart>
               } @else {
                 <div class="empty-state">
@@ -268,7 +268,7 @@ import { EvaluationMediaScore, SCORE_LABELS, Evaluation } from '../../core/model
 
             <!-- System prompt distribution -->
             <div class="card section" style="overflow:hidden;min-width:0">
-              <div class="card-title">Distribuzione per System Prompt ({{ uc.distribuzione_system_prompt?.length }} distinti)</div>
+              <div class="card-title">Distribuzione per System Prompt ({{ uc.distribuzione_system_prompt.length }} distinti)</div>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -344,7 +344,7 @@ import { EvaluationMediaScore, SCORE_LABELS, Evaluation } from '../../core/model
                 </div>
                 <div class="kpi-body">
                   <div class="card-title">Assistant Distinti</div>
-                  <div class="big-num">{{ cl.distribuzione_assistant?.length || 0 }}</div>
+                  <div class="big-num">{{ cl.distribuzione_assistant.length }}</div>
                   <div class="kpi-subtitle">Agenti AI monitorati</div>
                 </div>
               </div>
@@ -353,7 +353,7 @@ import { EvaluationMediaScore, SCORE_LABELS, Evaluation } from '../../core/model
             <!-- Trend -->
             <div class="card section" style="overflow:hidden;min-width:0">
               <div class="card-title">Trend Giornaliero Chat Logs</div>
-              @if ((cl.trend_giornaliero?.length ?? 0) > 0) {
+              @if (cl.trend_giornaliero.length > 0) {
                 <app-trend-chart [data]="cl.trend_giornaliero" label="Chat Logs"></app-trend-chart>
               } @else {
                 <div class="empty-state">

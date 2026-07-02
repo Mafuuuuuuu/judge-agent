@@ -18,22 +18,31 @@ export interface Evaluation {
   created_at: string;
 }
 
+// Risposta paginata di GET /api/evaluations/analytics/list
+export interface EvaluationListResponse {
+  page: number;
+  size: number;
+  total: number;
+  items: Evaluation[];
+}
+
+// I campi aggregati sono nullable: con zero valutazioni SQLite AVG/MIN/MAX restituiscono NULL
 export interface EvaluationMediaScore {
   totale_valutazioni: number;
   score_medi: {
-    overall: number;
-    technical: number;
-    completeness: number;
-    business: number;
-    consistency: number;
+    overall: number | null;
+    technical: number | null;
+    completeness: number | null;
+    business: number | null;
+    consistency: number | null;
     prompt_compliance: number | null;
-    helpfulness: number;
-    tone: number;
-    hallucination: number;
-    efficiency: number;
-    source_reliability: number;
+    helpfulness: number | null;
+    tone: number | null;
+    hallucination: number | null;
+    efficiency: number | null;
+    source_reliability: number | null;
   };
-  overall_range: { min: number; max: number };
+  overall_range: { min: number | null; max: number | null };
 }
 
 export const SCORE_LABELS: Record<string, string> = {

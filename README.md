@@ -38,7 +38,7 @@ Judge Agent (LLM Eval) ◄─────────┘
 Evaluations DB
         │
         ▼
-Analytics Layer  ─────►  (futuro: dashboard Angular)
+Analytics Layer  ─────►  Dashboard Angular (frontend/)
 ```
 
 Il sistema si articola in tre responsabilità principali:
@@ -103,6 +103,8 @@ Variabili principali:
 | `DB_PATH` | Percorso del database SQLite mirror | `data/platformhero_mirror.db` |
 | `CORS_ORIGINS` | Origine consentita per il frontend | `http://localhost:4200` |
 | `PORT` | Porta del server FastAPI | `8000` |
+| `JWT_SECRET_KEY` | Chiave di firma dei token JWT (obbligatoria) | stringa casuale lunga |
+| `JWT_EXPIRE_MINUTES` | Durata del token in minuti | `60` |
 
 Nota: il file `.env` non va committato ed è già escluso tramite `.gitignore`.
 
@@ -119,57 +121,86 @@ Interfacce e endpoint utili:
 - Swagger UI: `http://127.0.0.1:8000/docs`
 - Health check: `http://127.0.0.1:8000/health`
 
+## Autenticazione
+
+Tutti gli endpoint (tranne `/health` e `/api/auth/login`) richiedono un token JWT nell'header `Authorization: Bearer <token>`.
+
+Ruoli disponibili, dal più al meno privilegiato:
+
+| Ruolo | Analytics | Insert / Evaluate | Delete | Gestione utenti |
+|---|---|---|---|---|
+| `admin` | ✔ | ✔ | ✔ | ✔ |
+| `analyst` | ✔ | ✔ | ✘ | ✘ |
+| `viewer` | ✔ | ✘ | ✘ | ✘ |
+
+### Endpoint auth
+
+| Metodo | Endpoint | Ruolo | Descrizione |
+|---|---|---|---|
+| POST | `/api/auth/login` | pubblico (rate limit 5/min) | Restituisce `access_token` JWT |
+| GET | `/api/auth/me` | autenticato | Dati dell'utente corrente |
+| POST | `/api/auth/register` | admin (rate limit 3/min) | Crea un nuovo utente |
+| GET | `/api/auth/users` | admin | Lista utenti |
+| PATCH | `/api/auth/users/{username}/role` | admin | Cambia ruolo |
+| PATCH | `/api/auth/users/{username}/password` | admin | Reset password |
+| DELETE | `/api/auth/users/{username}` | admin | Elimina utente |
+
 ## API Reference
 
-La naming convention evita i trattini e organizza gli endpoint per azione e dominio.
+Tutti gli endpoint applicativi sono montati sotto il prefisso `/api`, organizzati per dominio e azione.
 
-### Insert
+### User Chat
 
-| Metodo | Endpoint | Descrizione |
-|---|---|---|
-| POST | `/insert/userchat` | Inserisce una chat utente |
-| POST | `/insert/logs` | Inserisce e normalizza log raw |
-| POST | `/insert/chatlogs` | Inserisce o sincronizza log da PlatformHero |
+| Metodo | Endpoint | Ruolo minimo | Descrizione |
+|---|---|---|---|
+| POST | `/api/userchat/insert` | analyst | Inserisce una chat utente |
+| POST | `/api/userchat/evaluate/{chat_id}` | analyst | Valuta una user chat tramite AI Judge |
+| GET | `/api/userchat/analytics/totals` | viewer | Totale conversazioni |
+| GET | `/api/userchat/analytics/mediamessaggi` | viewer | Media, minimo e massimo messaggi |
+| GET | `/api/userchat/analytics/distribuzionesystemprompt` | viewer | Distribuzione per system prompt |
+| GET | `/api/userchat/analytics/trend` | viewer | Trend temporale |
+| GET | `/api/userchat/analytics/topchat` | viewer | Top N chat per messaggi |
+| GET | `/api/userchat/analytics/list` | viewer | Listato paginato (`limit`/`offset`, risposta `{totale, limit, offset, risultati}`) |
+| GET | `/api/userchat/analytics/summary` | viewer | Overview completa in una sola chiamata, incluse le evaluation collegate |
+| DELETE | `/api/userchat/delete/{chat_id}` | admin | Elimina una chat con cascade manuale verso `evaluations` |
 
-### Evaluate
+### Chat Logs
 
-| Metodo | Endpoint | Descrizione |
-|---|---|---|
-| POST | `/evaluate/userchat/{chat_id}` | Valuta una user chat tramite AI Judge |
-| POST | `/evaluate/chatlogs` | Valuta l'ultimo log sincronizzato di una chat, con `chat_id` nel body |
+| Metodo | Endpoint | Ruolo minimo | Descrizione |
+|---|---|---|---|
+| POST | `/api/chatlogs/insert` | analyst | Inserisce o sincronizza log da PlatformHero |
+| POST | `/api/chatlogs/evaluate` | analyst | Valuta l'ultimo log sincronizzato di una chat, con `chat_id` nel body |
+| GET | `/api/chatlogs/analytics/*` | viewer | Endpoint equivalenti a quelli di `userchat` |
+| GET | `/api/chatlogs/analytics/list` | viewer | Listato paginato (`page`/`size`, risposta `{page, size, total, items}`) |
+| GET | `/api/chatlogs/analytics/summary` | viewer | Overview completa in una sola chiamata |
+| DELETE | `/api/chatlogs/delete/{log_id}` | admin | Elimina un chat log con cascade automatica via foreign key |
 
-### Analytics
+### Evaluations
 
-| Metodo | Endpoint | Descrizione |
-|---|---|---|
-| GET | `/analytics/userchat/totals` | Totale conversazioni |
-| GET | `/analytics/userchat/mediamessaggi` | Media, minimo e massimo messaggi |
-| GET | `/analytics/userchat/distribuzionesystemprompt` | Distribuzione per system prompt |
-| GET | `/analytics/userchat/trend` | Trend temporale |
-| GET | `/analytics/userchat/topchat` | Top N chat per messaggi |
-| GET | `/analytics/userchat/list` | Listato paginato |
-| GET | `/analytics/userchat/summary` | Overview completa in una sola chiamata, incluse le evaluation collegate |
-| GET | `/analytics/chatlogs/*` | Endpoint equivalenti per `chat_logs` |
-| GET | `/analytics/chatlogs/summary` | Overview completa in una sola chiamata, incluse le evaluation collegate |
-| GET | `/analytics/evaluations/mediascore` | Score medi su tutte le valutazioni |
-| GET | `/analytics/evaluations/list` | Listato valutazioni |
+| Metodo | Endpoint | Ruolo minimo | Descrizione |
+|---|---|---|---|
+| GET | `/api/evaluations/analytics/mediascore` | viewer | Score medi su tutte le valutazioni (filtri `from_date`/`to_date`) |
+| GET | `/api/evaluations/analytics/list` | viewer | Listato paginato (`page`/`size`, risposta `{page, size, total, items}`) |
+| DELETE | `/api/evaluations/delete/{evaluation_id}` | admin | Elimina una valutazione |
+
+### Logs raw
+
+| Metodo | Endpoint | Ruolo minimo | Descrizione |
+|---|---|---|---|
+| POST | `/api/logs/insert` | analyst | Inserisce e normalizza log raw |
 
 Gli endpoint `/summary` sono pensati per la dashboard: una singola chiamata HTTP può popolare una vista Overview completa, riducendo i round-trip.
-
-### Delete
-
-| Metodo | Endpoint | Descrizione |
-|---|---|---|
-| DELETE | `/delete/userchat/{chat_id}` | Elimina una chat utente con cascade manuale verso `evaluations` |
-| DELETE | `/delete/chatlogs/{log_id}` | Elimina un chat log con cascade automatica via foreign key |
-| DELETE | `/delete/evaluations/{evaluation_id}` | Elimina una valutazione |
 
 ## Struttura del progetto
 
 ```text
 app/
-├── main.py                  # App FastAPI, CORS e registrazione router
+├── main.py                  # App FastAPI, middleware e registrazione router
 ├── pyrightconfig.json       # Configurazione Pyright
+├── auth/
+│   ├── router.py            # Endpoint /api/auth (login, gestione utenti)
+│   ├── service.py           # Hash password e firma/verifica JWT
+│   └── dependencies.py      # get_current_user e require_role
 ├── config/
 │   └── settings.py          # Configurazioni lette da .env
 ├── core/
@@ -194,7 +225,13 @@ app/
 │       ├── evaluate.py      # Valutazione chat utente
 │       ├── analytics.py     # Analytics sulle chat utente
 │       └── delete.py        # Eliminazione chat utente
-└── utils/                   # Utility condivise
+├── test/
+│   └── locustfile.py        # Load test con Locust
+└── utils/
+    ├── limiter.py           # Rate limiting (slowapi)
+    └── middleware.py        # Sanitizzazione body e request-id
+
+frontend/                    # Dashboard Angular 20 (vedi frontend/README.md)
 
 notebooks/
 ├── database_setup.ipynb     # Setup manuale delle tabelle SQLite

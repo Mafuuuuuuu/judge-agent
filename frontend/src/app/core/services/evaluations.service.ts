@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, of, tap } from 'rxjs';
-import { Evaluation, EvaluationMediaScore } from '../models/evaluation.model';
+import { Observable, of, tap, map } from 'rxjs';
+import { Evaluation, EvaluationListResponse, EvaluationMediaScore } from '../models/evaluation.model';
 
 @Injectable({ providedIn: 'root' })
 export class EvaluationsService {
@@ -25,7 +25,11 @@ export class EvaluationsService {
     if (!forceRefresh && this._cachedList !== null) {
       return of(this._cachedList);
     }
-    return this.http.get<Evaluation[]>(`${this.base}/analytics/list`).pipe(
+    // Il backend risponde paginato ({page, size, total, items}): chiediamo la size
+    // massima (500) e spacchettiamo items, i componenti filtrano/paginano lato client
+    const params = new HttpParams().set('page', 1).set('size', 500);
+    return this.http.get<EvaluationListResponse>(`${this.base}/analytics/list`, { params }).pipe(
+      map(r => r.items),
       tap(data => this._cachedList = data)
     );
   }

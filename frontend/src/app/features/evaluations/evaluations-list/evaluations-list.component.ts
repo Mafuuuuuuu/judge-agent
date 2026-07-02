@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { EvaluationsService } from '../../../core/services/evaluations.service';
 import { ToastService } from '../../../shared/toast/toast.service';
 import { ScoreBadgeComponent } from '../../../shared/score-badge/score-badge.component';
-import { ScoreRadarComponent } from '../../../shared/score-radar/score-radar.component';
 import { BarChartComponent } from '../../../shared/bar-chart/bar-chart.component';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 import { LoadingSkeletonComponent } from '../../../shared/loading-skeleton/loading-skeleton.component';
@@ -15,7 +14,7 @@ import { ActivatedRoute } from '@angular/router';
 @Component({
   selector: 'app-evaluations-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, ScoreBadgeComponent, ScoreRadarComponent, BarChartComponent, ConfirmDialogComponent, LoadingSkeletonComponent],
+  imports: [CommonModule, FormsModule, ScoreBadgeComponent, BarChartComponent, ConfirmDialogComponent, LoadingSkeletonComponent],
   template: `
     <div class="fade-in">
       <!-- Page header -->
@@ -113,7 +112,7 @@ import { ActivatedRoute } from '@angular/router';
 
       <!-- Lista -->
       <div *ngIf="!loading && filteredEvaluations.length > 0" class="evals-list">
-        <div *ngFor="let ev of pagedEvaluations; let i = index; trackBy: trackByIndex"
+        <div *ngFor="let ev of pagedEvaluations; trackBy: trackById"
              class="card eval-card"
              [class.eval-card--expanded]="expanded === ev.id"
              [class.eval-card--highlight]="highlightId === ev.id"
@@ -589,7 +588,8 @@ export class EvaluationsListComponent implements OnInit {
     this.applyFilters();
   }
 
-  trackByIndex(index: number): number { return index; }
+  // Track per id: con filtri/ordinamento l'indice cambia, l'id no
+  trackById(_index: number, ev: Evaluation): string { return ev.id; }
 
   toggle(id: string) {
     this.expanded = this.expanded === id ? null : id;

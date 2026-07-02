@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { ChatlogSummary, ChatlogRecord, ChatlogInsertRequest, ChatlogEvaluateRequest } from '../models/chatlog.model';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, map } from 'rxjs';
+import { ChatlogSummary, ChatlogRecord, ChatlogListResponse, ChatlogInsertRequest, ChatlogEvaluateRequest } from '../models/chatlog.model';
 
 @Injectable({ providedIn: 'root' })
 export class ChatlogsService {
@@ -14,7 +14,12 @@ export class ChatlogsService {
   }
 
   getList(): Observable<ChatlogRecord[]> {
-    return this.http.get<ChatlogRecord[]>(`${this.base}/analytics/list`);
+    // Il backend risponde paginato ({page, size, total, items}): chiediamo la size
+    // massima (500) e spacchettiamo items, la lista filtra/pagina lato client
+    const params = new HttpParams().set('page', 1).set('size', 500);
+    return this.http.get<ChatlogListResponse>(`${this.base}/analytics/list`, { params }).pipe(
+      map(r => r.items)
+    );
   }
 
   insert(payload: ChatlogInsertRequest): Observable<any> {
