@@ -133,6 +133,25 @@ già solido e coerente — nessun restyling gratuito, solo fix mirati.
 `POST /api/userchat/insert` accetta `messages: []` e crea una chat vuota:
 valutare una validazione `min_length=1` in `database/schemas.py`.
 
+## Post-chiusura — bug trovato nel test manuale ✅ RISOLTO (commit `4ec9209`)
+
+Valutando una nuova user chat dalla UI: **500 Internal Server Error**
+(`FOREIGN KEY constraint failed`). Causa: il DB era stato creato a mano col
+vecchio schema in cui `evaluations.log_id` aveva un FK rigido verso
+`chat_logs(id)` — ma `log_id` è polimorfico per design e con
+`PRAGMA foreign_keys=ON` ogni valutazione di user chat falliva
+(`CREATE TABLE IF NOT EXISTS` in `init_db` non aggiorna le tabelle esistenti,
+quindi lo schema corretto già presente nel codice non veniva mai applicato).
+
+- `init_db` ora esegue una **migrazione automatica**: rileva il FK legacy e
+  ricostruisce `evaluations` senza vincolo (dati e indici preservati) —
+  vale anche per il DB del collega al prossimo avvio.
+- Delete di chatlogs: cascade manuale delle evaluations (prima si affidava
+  al FK che non esiste più).
+- Backup pre-migrazione: `data/platformhero_mirror.db.bak-20260702-122616`.
+- Verificato: la stessa valutazione che falliva ora torna 200, score salvati
+  correttamente (con `prompt_compliance` null → guardia `_norm_score` attiva).
+
 ---
 
 ## Come avviare l'ambiente
